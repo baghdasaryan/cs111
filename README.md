@@ -1,4 +1,4 @@
-cs111
-=====
+CS 111
+======
 
-CS111 projects
+CS 111 Lab Projects
