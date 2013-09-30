@@ -1,4 +1,4 @@
 cs111
 =====
 
-CS111 project
+CS111 projects
