@@ -46,13 +46,14 @@ main (int argc, char **argv)
 
   script_name = argv[optind];
   FILE *script_stream = fopen (script_name, "r");
-  if (! script_stream)
+  if (!script_stream)
     error (1, errno, "%s: cannot open", script_name);
   command_stream_t command_stream =
     make_command_stream (get_next_byte, script_stream);
 
   command_t last_command = NULL;
   command_t command;
+
   while ((command = read_command_stream (command_stream)))
     {
       if (print_tree)

@@ -1,3 +1,10 @@
+# Vim files
+*.s[a-w][a-z]
+*.un~
+Session.vim
+.netrwhist
+*~
+
 # Object files
 *.o
 
@@ -15,3 +22,4 @@
 *.exe
 *.out
 *.app
+/lab1/lab1-Skeleton/timetrash
