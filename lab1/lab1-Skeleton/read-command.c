@@ -17,10 +17,11 @@ struct command_stream
   struct command* curr;
 };
 
-
 bool checkChar (char ch)
 {
-  bool result = false;
+  if (isalnum(ch))
+    return true;
+
   switch (ch)
     {
     case '.':
@@ -34,11 +35,11 @@ bool checkChar (char ch)
     case ':':
     case '@':
     case '_':
-      result = true;
+      return true;
       break;
+    default:
+      return false;
     }
-
-  return result;  
 }
 
 command_stream_t
