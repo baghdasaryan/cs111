@@ -15,6 +15,30 @@ struct command_stream
   struct command_stream* next;
   struct command_stream* prev;
   struct command* curr;
+};
+
+
+bool checkChar (char ch)
+{
+  bool result = false;
+  switch (ch)
+    {
+    case '.':
+    case ',':
+    case '-':
+    case '+':
+    case '%':
+    case '!':
+    case '/':
+    case '^':
+    case ':':
+    case '@':
+    case '_':
+      result = true;
+      break;
+    }
+
+  return result;  
 }
 
 command_stream_t
