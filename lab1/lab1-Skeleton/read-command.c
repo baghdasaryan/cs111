@@ -90,7 +90,7 @@ get_command (int (*get_next_byte) (void *),
 
   while (is_command(*ch))
   {
-    buffer[i] = *ch;
+    buffer[num_used_bytes] = *ch;
     get_next_char(get_next_byte, get_next_byte_argument, ch);
     num_used_bytes++;
   }
