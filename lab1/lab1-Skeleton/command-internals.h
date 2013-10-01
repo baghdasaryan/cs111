@@ -10,6 +10,7 @@ enum command_type
     SUBSHELL_COMMAND,    // ( A )
   };
 
+
 // Data associated with a command.
 struct command
 {
