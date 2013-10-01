@@ -2,8 +2,10 @@
 
 #include "command.h"
 #include "command-internals.h"
-
+#include <ctype.h>
 #include <error.h>
+#include <stdio.h>
+#include <stdlib.h>
 
 /* FIXME: You may need to add #include directives, macro definitions,
    static function definitions, etc.  */
@@ -16,6 +18,10 @@ struct command_stream
   struct command_stream* prev;
   struct command* curr;
 };
+
+/* ========================
+   ==  Helper Functions  ==
+   ======================== */
 
 // Returns the next character
 void
@@ -94,6 +100,10 @@ get_command (int (*get_next_byte) (void *),
   strcpy(*temp, buffer);
 }
 
+/*===============================
+  ===== Helper functions end ====
+  ===============================*/
+
 command_stream_t
 make_command_stream (int (*get_next_byte) (void *),
 		     void *get_next_byte_argument)
@@ -101,7 +111,6 @@ make_command_stream (int (*get_next_byte) (void *),
   /* FIXME: Replace this with your implementation.  You may need to
      add auxiliary functions and otherwise modify the source code.
      You can also use external functions defined in the GNU C Library.  */
-
   char ch;
   get_next_non-empty_char(get_next_byte, get_next_byte_argument, &ch);
 
