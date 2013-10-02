@@ -11,17 +11,14 @@
 #include <stdlib.h>
 #include <string.h>
 
-/* FIXME: You may need to add #include directives, macro definitions,
-   static function definitions, etc.  */
 
-/* FIXME: Define the type 'struct command_stream' here.  This should
-   complete the incomplete type declaration in command.h.  */
 struct command_stream
 {
-  struct command_stream* next;
-  struct command_stream* prev;
-  struct command* curr;
+  command_stream_t next;
+  command_stream_t prev;
+  command_t cmd;
 };
+
 
 // ********************************** //
 // ***                            *** //
@@ -121,21 +118,32 @@ get_word (int (*get_next_byte) (void *),
   free(buffer);
 }
 
+// TODO: Finish writing this function
+command_t
+gen_command_tree ()
+{
+
+}
+
 // ******************************** //
 // ***                          *** //
 // ***   Helper Functions End   *** //
 // ***                          *** //
 // ******************************** //
 
+
+// TODO: Performance could be potentially improved if we could start
+//         constructing the command stream tree right away (without first
+//         saving tokens)
 command_stream_t 
 make_command_stream (int (*get_next_byte) (void *),
 		     void *get_next_byte_argument)
 {
-  /* FIXME: Replace this with your implementation.  You may need to
-     add auxiliary functions and otherwise modify the source code.
-     You can also use external functions defined in the GNU C Library.  */
-  token_t head = NULL,
-          current = NULL;
+  token_t tokens_head = NULL,
+          current_token = NULL;
+
+  // Build a linked list of tokens
+
   char ch;
   get_next_non_empty_char(get_next_byte, get_next_byte_argument, &ch);
 
@@ -146,7 +154,7 @@ make_command_stream (int (*get_next_byte) (void *),
     {
       char *tmp = NULL;
       get_word(get_next_byte, get_next_byte_argument, &ch, &tmp);
-      create_token(head, current, false, tmp);
+      create_token(tokens_head, current_token, false, tmp);
       free(tmp);
       if (ch != ' ' && ch != '\t')
       {
@@ -163,28 +171,28 @@ make_command_stream (int (*get_next_byte) (void *),
             get_next_char(get_next_byte, get_next_byte_argument, &ch);
           break;
         case '(':  // Start subshell
-          create_token(head, current, true, "(\0");
+          create_token(tokens_head, current_token, true, "(\0");
           break;
         case ')':  // End subshell
-          create_token(head, current, true, "(\0");
+          create_token(tokens_head, current_token, true, "(\0");
           break;
         case '<':  // Redirect output
-          create_token(head, current, true, "<\0");
+          create_token(tokens_head, current_token, true, "<\0");
           break;
         case '>':  // Read from
-          create_token(head, current, true, ">\0");
+          create_token(tokens_head, current_token, true, ">\0");
           break;
         case ';':  // End command sequence
-          create_token(head, current, true, ";\0");
+          create_token(tokens_head, current_token, true, ";\0");
           break;
         case '|':  // OR command
           if (check_next_char(get_next_byte, get_next_byte_argument, '|'))
           {
-            create_token(head, current, true, "||\0");
+            create_token(tokens_head, current_token, true, "||\0");
           }
           else
           {
-            create_token(head, current, true, "|\0");
+            create_token(tokens_head, current_token, true, "|\0");
             if (ch != ' ' && ch != '\t')
             {
               continue;
@@ -194,7 +202,7 @@ make_command_stream (int (*get_next_byte) (void *),
         case '&':  // AND command
           if (check_next_char(get_next_byte, get_next_byte_argument, '&'))
           {
-            create_token(head, current, true, "&&\0");
+            create_token(tokens_head, current_token, true, "&&\0");
           }
           else
           {
@@ -202,7 +210,7 @@ make_command_stream (int (*get_next_byte) (void *),
           }      
           break;
         case '\n': // End of line
-          create_token(head, current, true, "\n\0");
+          create_token(tokens_head, current_token, true, "\n\0");
           break;
         default:
           error(1, 0, "%d: ERR", line_number);
@@ -210,13 +218,40 @@ make_command_stream (int (*get_next_byte) (void *),
     }
 
     get_next_non_empty_char(get_next_byte, get_next_byte_argument, &ch);
-
   }
 
-  // Construct a command tree
+  // Construct trees for command streams by iterating through the linked list
+  // with tokens
+ 
+  command_t command_stream_head = NULL,
+            current_command_stream = NULL;
+  while (current_token != NULL)
+  {
+    // Create a tree for a set of commands
+    command_t command_tree = gen_command_tree(current_token); // TODO: Update this function
 
-  error(1, 0, "command reading not yet implemented");
-  return 0;
+    // Allocate a new node
+    command_stream_t temp = checked_malloc(sizeof(command_t ));
+
+    // Add data to the node
+    temp->next = NULL;
+    temp->cmd = NULL; // TODO: Get the command tree here instead of NULL
+
+    // Add node to the list
+    if (command_stream_head == NULL)
+    {
+      command_stream_head = temp;
+      temp->prev = NULL;
+    }
+    else
+    {
+      current_command_stream->next = temp;
+      temp->prev = current_command_stream;
+    }
+    current_command_stream = temp;
+  }
+
+  return command_stream_head;
 }
 
 command_t
