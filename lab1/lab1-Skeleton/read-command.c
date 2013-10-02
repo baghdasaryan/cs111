@@ -6,6 +6,7 @@
 #include <error.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <token.h>
 
 /* FIXME: You may need to add #include directives, macro definitions,
    static function definitions, etc.  */
@@ -19,9 +20,9 @@ struct command_stream
   struct command* curr;
 };
 
-/* ========================
-   ==  Helper Functions  ==
-   ======================== */
+/* =============================
+   ==  Helper Functions Begin ==
+   ============================= */
 
 // Returns the next character
 void
@@ -79,6 +80,7 @@ is_command (char ch)
     }
 }
 
+//get word
 void
 get_command (int (*get_next_byte) (void *),
              void *get_next_byte_argument,
@@ -97,20 +99,51 @@ get_command (int (*get_next_byte) (void *),
   buffer[num_used_bytes] = '\0';
 
   *command = checked_malloc(sizeof(char) * num_used_bytes + 1);
-  strcpy(*temp, buffer);
+  strcpy(*command, buffer);
 }
+
+//add a new token to token head
+void
+create_token(token_t head, bool isCommand,
+             char * ch)
+{
+  //construct a new token 
+  int ch_size = strlen(ch);
+  token_t new_token = (token_t) checked_malloc(sizeof(token_t));
+  new_token->is_command = isCommand;
+  new_token->next = NULL;
+  new_token->data = (char *) checked_malloc(ch_size *sizeof(char) + 1);
+  strcpy(new_token->data, ch);
+  new_token->data[ch_size] = '\0';
+  //insert it to the end of linked list
+  if (head == NULL)
+  {
+    head = new_token;
+  }
+  else
+  {
+    token_t temp = head;
+      while (temp->next != NULL){
+        temp = temp->next;
+      }
+    temp->next = new_token;   
+  }
+}
+
+
 
 /*===============================
   ===== Helper functions end ====
   ===============================*/
 
-command_stream_t
+command_stream_t 
 make_command_stream (int (*get_next_byte) (void *),
 		     void *get_next_byte_argument)
 {
   /* FIXME: Replace this with your implementation.  You may need to
      add auxiliary functions and otherwise modify the source code.
      You can also use external functions defined in the GNU C Library.  */
+  token_t head = NULL;
   char ch;
   get_next_non-empty_char(get_next_byte, get_next_byte_argument, &ch);
 
@@ -119,8 +152,8 @@ make_command_stream (int (*get_next_byte) (void *),
     if (is_command(ch))
     {
       char *tmp = NULL;
-      get_command(get_next_byte, get_next_byte_argument, &ch, &tmp);
-
+      get_command(get_next_byte, get_next_byte_argument, &ch, &tmp);  //get a word
+      create_token(head, true, &tmp); //put a word into a token
       free(tmp);
     }
     else
@@ -133,34 +166,34 @@ make_command_stream (int (*get_next_byte) (void *),
             get_next_char(get_next_byte, get_next_byte_argument, &ch);
           break;
         case '(':  // Start subshell
-      
+          create_token(head, false, '(\0');
           break;
         case ')':  // End subshell
-      
+          create_token(head, false, '(\0');
           break;
         case '<':  // Redirect output
-      
+          create_token(head, false, '<\0');
           break;
         case '>':  // Read from
-      
+          create_token(head, false, '>\0');
           break;
         case ';':  // End command sequence
-      
+          create_token(head, false, ';\0');
           break;
         case '|':  // OR command
           if(check_next_char(get_next_byte, get_next_byte_argument, '|'))
           {
-              
+              create_token(head, false, '||\0');
           }
           else
           {
-              
+              create_token(head, false, '|\0');
           }      
           break;
         case '&':  // AND command
           if(check_next_char(get_next_byte, get_next_byte_argument, '&'))
           {
-              
+              create_token(head, false, '&&\0');
           }
           else
           {
@@ -168,7 +201,7 @@ make_command_stream (int (*get_next_byte) (void *),
           }      
           break;
         case '\n': // End of line
-      
+          create_token(head, false, '\n\0');
           break;
       
         default:
