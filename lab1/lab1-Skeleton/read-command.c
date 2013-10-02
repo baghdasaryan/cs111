@@ -148,6 +148,10 @@ make_command_stream (int (*get_next_byte) (void *),
       get_word(get_next_byte, get_next_byte_argument, &ch, &tmp);
       create_token(head, current, false, tmp);
       free(tmp);
+      if (ch != ' ' && ch != '\t')
+      {
+        continue;
+      }
     }
     else // process commands
     {
@@ -176,17 +180,21 @@ make_command_stream (int (*get_next_byte) (void *),
         case '|':  // OR command
           if (check_next_char(get_next_byte, get_next_byte_argument, '|'))
           {
-              create_token(head, current, true, "||\0");
+            create_token(head, current, true, "||\0");
           }
           else
           {
-              create_token(head, current, true, "|\0");
+            create_token(head, current, true, "|\0");
+            if (ch != ' ' && ch != '\t')
+            {
+              continue;
+            }
           }      
           break;
         case '&':  // AND command
           if (check_next_char(get_next_byte, get_next_byte_argument, '&'))
           {
-              create_token(head, current, true, "&&\0");
+            create_token(head, current, true, "&&\0");
           }
           else
           {
