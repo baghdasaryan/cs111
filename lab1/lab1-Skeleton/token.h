@@ -1,10 +1,13 @@
-// UCLA CS 111 Lab 1 command token interface
+// Command token interface
+
+#include "alloc.h"
 
 #include <stdbool.h>
+#include <string.h>
 
 typedef struct token *token_t;
 
-// A likned list of tokens
+// A data structure to represent a likned list of tokens
 struct token
 {
   struct token *next;
@@ -15,29 +18,28 @@ struct token
 // Add a new item to the list
 void
 create_token (token_t head,
+              token_t current,
               bool is_command,
-              char * ch)
+              char *token)
 {
-  //construct a new token 
-  int ch_size = strlen(ch);
-  token_t new_token = (token_t) checked_malloc(sizeof(token_t));
-  new_token->is_command = is_command;
-  new_token->next = NULL;
-  new_token->data = (char *) checked_malloc(ch_size *sizeof(char) + 1);
-  strcpy(new_token->data, ch);
-  new_token->data[ch_size] = '\0';
-  //insert it to the end of linked list
+  // Allocate a new node
+  token_t temp = (token_t) checked_malloc(sizeof(token_t));
+
+  // Add data to the node
+  temp->next = NULL;
+  temp->is_command = is_command;
+  temp->data = (char*) checked_malloc(strlen(token) * sizeof(char));
+  strcpy(temp->data, token);
+
+  // Insert the new node at the end of the linked list
   if (head == NULL)
   {
-    head = new_token;
+    head = temp;
   }
   else
   {
-    token_t temp = head;
-      while (temp->next != NULL){
-        temp = temp->next;
-      }
-    temp->next = new_token;   
+    current->next = temp;
   }
+  current = temp;
 }
 
