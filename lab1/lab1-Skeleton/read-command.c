@@ -166,34 +166,34 @@ make_command_stream (int (*get_next_byte) (void *),
             get_next_char(get_next_byte, get_next_byte_argument, &ch);
           break;
         case '(':  // Start subshell
-          create_token(head, false, '(\0');
+          create_token(head, false, "(\0");
           break;
         case ')':  // End subshell
-          create_token(head, false, '(\0');
+          create_token(head, false, "(\0");
           break;
         case '<':  // Redirect output
-          create_token(head, false, '<\0');
+          create_token(head, false, "<\0");
           break;
         case '>':  // Read from
-          create_token(head, false, '>\0');
+          create_token(head, false, ">\0");
           break;
         case ';':  // End command sequence
-          create_token(head, false, ';\0');
+          create_token(head, false, ";\0");
           break;
         case '|':  // OR command
           if(check_next_char(get_next_byte, get_next_byte_argument, '|'))
           {
-              create_token(head, false, '||\0');
+              create_token(head, false, "||\0");
           }
           else
           {
-              create_token(head, false, '|\0');
+              create_token(head, false, "|\0");
           }      
           break;
         case '&':  // AND command
           if(check_next_char(get_next_byte, get_next_byte_argument, '&'))
           {
-              create_token(head, false, '&&\0');
+              create_token(head, false, "&&\0");
           }
           else
           {
@@ -201,7 +201,7 @@ make_command_stream (int (*get_next_byte) (void *),
           }      
           break;
         case '\n': // End of line
-          create_token(head, false, '\n\0');
+          create_token(head, false, "\n\0");
           break;
       
         default:
