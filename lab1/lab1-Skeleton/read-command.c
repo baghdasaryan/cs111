@@ -20,9 +20,11 @@ struct command_stream
   struct command* curr;
 };
 
-/* =============================
-   ==  Helper Functions Begin ==
-   ============================= */
+// ********************************** //
+// ***                            *** //
+// ***   Helper Functions Begin   *** //
+// ***                            *** //
+// ********************************** //
 
 // Returns the next character
 void
@@ -53,9 +55,9 @@ check_next_char (int (*get_next_byte) (void *),
   return ((char) get_next_byte(get_next_byte_argument) == next_char);
 }
 
-// Checks if the given character can belong to a command
+// Checks if the given character belongs to a word rather than to a command
 bool
-is_command (char ch)
+is_word (char ch)
 {
   if (isalnum(ch))
     return true;
@@ -80,9 +82,9 @@ is_command (char ch)
     }
 }
 
-//get word
+// Reads a complete word
 void
-get_command (int (*get_next_byte) (void *),
+get_word (int (*get_next_byte) (void *),
              void *get_next_byte_argument,
              char *ch,
              char **command)
@@ -90,7 +92,7 @@ get_command (int (*get_next_byte) (void *),
   char buffer[256];
   int num_used_bytes = 0;
 
-  while (is_command(*ch))
+  while (is_word(*ch))
   {
     buffer[num_used_bytes] = *ch;
     get_next_char(get_next_byte, get_next_byte_argument, ch);
@@ -102,39 +104,11 @@ get_command (int (*get_next_byte) (void *),
   strcpy(*command, buffer);
 }
 
-//add a new token to token head
-void
-create_token(token_t head, bool isCommand,
-             char * ch)
-{
-  //construct a new token 
-  int ch_size = strlen(ch);
-  token_t new_token = (token_t) checked_malloc(sizeof(token_t));
-  new_token->is_command = isCommand;
-  new_token->next = NULL;
-  new_token->data = (char *) checked_malloc(ch_size *sizeof(char) + 1);
-  strcpy(new_token->data, ch);
-  new_token->data[ch_size] = '\0';
-  //insert it to the end of linked list
-  if (head == NULL)
-  {
-    head = new_token;
-  }
-  else
-  {
-    token_t temp = head;
-      while (temp->next != NULL){
-        temp = temp->next;
-      }
-    temp->next = new_token;   
-  }
-}
-
-
-
-/*===============================
-  ===== Helper functions end ====
-  ===============================*/
+// ******************************** //
+// ***                          *** //
+// ***   Helper Functions End   *** //
+// ***                          *** //
+// ******************************** //
 
 command_stream_t 
 make_command_stream (int (*get_next_byte) (void *),
@@ -149,16 +123,16 @@ make_command_stream (int (*get_next_byte) (void *),
 
   for (int line_number = 1; ch != EOF; line_number++)
   {
-    if (is_command(ch))
+    if (is_word(ch)) // process words
     {
       char *tmp = NULL;
-      get_command(get_next_byte, get_next_byte_argument, &ch, &tmp);  //get a word
-      create_token(head, true, &tmp); //put a word into a token
+      get_word(get_next_byte, get_next_byte_argument, &ch, &tmp);
+      create_token(head, false, &tmp);
       free(tmp);
     }
-    else
+    else // process commands
     {
-      switch(ch)
+      switch (ch)
         {
         case '#':  // Comment
           // Ignore line
@@ -166,34 +140,34 @@ make_command_stream (int (*get_next_byte) (void *),
             get_next_char(get_next_byte, get_next_byte_argument, &ch);
           break;
         case '(':  // Start subshell
-          create_token(head, false, '(\0');
+          create_token(head, true, "(\0");
           break;
         case ')':  // End subshell
-          create_token(head, false, '(\0');
+          create_token(head, true, "(\0");
           break;
         case '<':  // Redirect output
-          create_token(head, false, '<\0');
+          create_token(head, true, "<\0");
           break;
         case '>':  // Read from
-          create_token(head, false, '>\0');
+          create_token(head, true, ">\0");
           break;
         case ';':  // End command sequence
-          create_token(head, false, ';\0');
+          create_token(head, true, ";\0");
           break;
         case '|':  // OR command
-          if(check_next_char(get_next_byte, get_next_byte_argument, '|'))
+          if (check_next_char(get_next_byte, get_next_byte_argument, '|'))
           {
-              create_token(head, false, '||\0');
+              create_token(head, true, "||\0");
           }
           else
           {
-              create_token(head, false, '|\0');
+              create_token(head, true, "|\0");
           }      
           break;
         case '&':  // AND command
-          if(check_next_char(get_next_byte, get_next_byte_argument, '&'))
+          if (check_next_char(get_next_byte, get_next_byte_argument, '&'))
           {
-              create_token(head, false, '&&\0');
+              create_token(head, true, "&&\0");
           }
           else
           {
@@ -201,9 +175,8 @@ make_command_stream (int (*get_next_byte) (void *),
           }      
           break;
         case '\n': // End of line
-          create_token(head, false, '\n\0');
+          create_token(head, true, "\n\0");
           break;
-      
         default:
           error (1, 0, "%d: ERR", line_number);
         }
@@ -227,3 +200,4 @@ read_command_stream (command_stream_t s)
   error (1, 0, "command reading not yet implemented");
   return 0;
 }
+
