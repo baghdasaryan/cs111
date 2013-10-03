@@ -120,11 +120,77 @@ get_word (int (*get_next_byte) (void *),
 
 // TODO: Finish writing this function
 command_t
-gen_command_tree ()
+gen_command_tree (token_t curr_token)
 {
 
 }
 
+
+//Generate single command for gen_command_tree to 
+//construct the tree
+command_t
+gen_simple_command(token_t curr_token)
+{
+  command_t single_command = checked_malloc(sizeof(command_t));0
+  size_t num_words = 0;
+  char **temp = NULL;
+
+  //current token is a command
+  single_command->type = SIMPLE_COMMAND;
+  single_command->status = -1;
+  single_command->input = NULL;
+  single_command->output = NULL;
+  (single_command->u).command[0] = NULL;
+  (single_command->u).command[1] = NULL;
+  (single_command->u).subshell_command = NULL;
+
+  //traverse token linked-lists and add tokens
+  while ( curr_token != NULL && curr_token->is_command){
+    //allocate memory for each char *
+    temp = check_remalloc(temp, (num_words + 1) * sizeof(char *)); 
+
+    //allocate memory for each word
+    size_t word_size = strlen(curr_token->data);
+    temp[num_words] = check_remalloc(temp[num_words],sizeof(char) * word_size);
+    temp[num_words] = curr_token->data;
+
+    //update curr_token
+    curr_token = curr_token->next;
+    num_words++;
+  }
+
+  temp[num_words] = NULL;
+  (single_command->u).word = temp;
+
+  return single_command;
+}
+
+//Generate subshell command
+command_t
+gen_subshell_command(command_t sub_commands){
+  command_t subshell_command = NULL;
+  subshell_command = checked_malloc(sizeof(command_t));
+  subshell_command->type = SUBSHELL_COMMAND;
+  subshell_command->status = -1;
+  subshell_command->input = NULL;
+  subshell_command->output = NULL;
+  subshell_command->sub_commands
+  return subshell_command;
+}
+
+//Generate rest of the commands
+command_t
+gen_complete_command(enum command_type cmd_type, command_t cmd_a, command_t cmd_b){
+  command_t complete_command = NULL;
+  complete_command = checked_malloc(sizeof(command_t));
+  complete_command -> type = cmd_type;
+  complete_command -> status = -1;
+  complete_command -> input = NULL;
+  complete_command -> output = NULL; 
+  complete_command -> command[0] = cmd_a;
+  complete_command -> command[1] = cmd_b;
+  return complete_command;
+}
 // ******************************** //
 // ***                          *** //
 // ***   Helper Functions End   *** //
