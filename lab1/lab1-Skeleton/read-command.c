@@ -100,10 +100,6 @@ get_word (int (*get_next_byte) (void *),
     {
       num_chars *= 2;
       buffer = (char*) checked_realloc(buffer, num_chars * sizeof(char));
-      if (buffer == NULL)
-      {
-        error (1, 0, "Error reallocating memory");
-      }
     }
 
     buffer[num_used_chars] = *ch;
@@ -119,6 +115,7 @@ get_word (int (*get_next_byte) (void *),
 }
 
 // TODO: Finish writing this function
+// Generate a tree of commands to execute
 command_t
 gen_command_tree (token_t *token)
 {
@@ -131,7 +128,7 @@ command_t
 create_simple_command (token_t token)
 {
   // Allocate memory for the command
-  command_t simple_command = checked_malloc(sizeof(struct command));
+  command_t simple_command = (command_t) checked_malloc(sizeof(struct command));
 
   // Add data to the command
   simple_command->type = SIMPLE_COMMAND;
