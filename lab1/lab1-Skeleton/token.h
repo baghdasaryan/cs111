@@ -17,8 +17,8 @@ struct token
 
 // Add a new item to the list
 void
-create_token (token_t head,
-              token_t current,
+create_token (token_t head_token,
+              token_t current_token,
               bool is_special_command,
               char *token)
 {
@@ -32,14 +32,14 @@ create_token (token_t head,
   strcpy(temp->data, token);
 
   // Insert the new node at the end of the linked list
-  if (head == NULL)
+  if (head_token == NULL)
   {
-    head = temp;
+    head_token = temp;
   }
   else
   {
-    current->next = temp;
+    current_token->next = temp;
   }
-  current = temp;
+  current_token = temp;
 }
 

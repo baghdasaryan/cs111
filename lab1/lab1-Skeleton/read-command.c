@@ -43,7 +43,7 @@ get_next_non_empty_char (int (*get_next_byte) (void *),
 {
   do {
     get_next_char(get_next_byte, get_next_byte_argument, ch);
-  } while(*ch == ' ' || *ch == '\t');
+  } while (*ch == ' ' || *ch == '\t');
 }
 
 // Check if the next argument is next_char
@@ -114,12 +114,157 @@ get_word (int (*get_next_byte) (void *),
   free(buffer);
 }
 
-// TODO: Finish writing this function
-// Generate a tree of commands to execute
-command_t
-gen_command_tree (token_t *token)
-{
 
+
+void
+print_error_and_exit(size_t line_num,
+                     const char *error)
+{
+  error(1, 0, "%d: %s", line_number, error);
+}
+
+bool
+streq (const char *str1,
+       const char *str2)
+{
+  return (strcmp(str1, str2) == 0);
+}
+
+// TODO: Finish writing this function
+// Generate a tree of commands to be saved in command stream (for further
+// execution)
+command_t
+gen_command_tree (token_t token, size_t *line_num)
+{
+  command_t cmd = NULL;
+
+  // Ignore empty lines
+  while (token != NULL && streq(token->data, "\n"))
+  {
+    token = token->next;
+    (*line_num)++;
+  }
+
+  if (token == NULL)
+    return NULL;
+
+  // Process token
+  if (!token->is_special_command)
+  {
+    cmd = create_simple_command(token);
+  }
+  else if (streq(token->data, "("))
+  {
+    // Process a subshell command
+    token = token->next;
+    command_t subshell_cmds = gen_command_tree(token, line_num);
+
+    if (subshell_cmds == NULL)
+      print_error_and_exit(*line_num, "GIVE ME A NAME :P .");
+    else if (streq(token->data, ")"))
+      print_error_and_exit(*line_num, "GIVE ME A NAME :P .");
+
+    cmd = create_subshell_command(subshell_cmds);
+    token = token->next;
+  }
+  else
+  {
+    print_error_and_exit(*line_num, "GIVE ME A NAME :P .");
+  }
+
+  if (token != NULL && streq(token->data, "<"))
+  {
+    if (!token->is_special_command)
+    {
+      cmd->input = token->data;
+      token = token->next;
+    }
+    else
+      print_error_and_exit(*line_num, "GIVE ME A NAME :P .");
+  }
+
+  if (token != NULL && streq(token->data, ">"))
+  {
+    if (!token->is_special_command)
+    {
+      cmd->output = token->data;
+      token = token->next;
+    }
+    else
+      print_error_and_exit(*line_num, "GIVE ME A NAME :P .");
+  }
+
+  if (token != NULL || streq(token->data, ")"))
+    return cmd;
+  else if (streq(token->data, "\n"))
+  {
+    token = token->next;
+    (*line_num)++;
+    return cmd;
+  }
+
+  command_t cmd2 = checked_malloc(sizeof(struct command));
+  enum command_type cmd2_type;
+
+  if (streq(token->data, "&&"))
+    cmd2_type = AND_COMMAND;
+  else if (streq(token->data, ";"))
+    cmd2_type = SEQUENCE_COMMAND;
+  else if (streq(token->data, "||"))
+    cmd2_type = OR_COMMAND;
+  else if (streq(token->data, "|"))
+    cmd2_type = PIPE_COMMAND;
+  else
+    print_error_and_exit(*line_num, "GIVE ME A NAME :P .");
+
+  token = token->next;
+  cmd2 = gen_command_tree(token, line_num);
+
+  if (cmd2 == NULL)
+    print_error_and_exit(*line_num, "GIVE ME A NAME :P .");
+  
+
+  return arrange_tree_nodes(cmd, cmd2, type);
+}
+
+command_t
+arrange_tree_nodes (command_t cmd1,
+                    command_t cmd2,
+                    enum command_type type)
+{
+  command_t tmp = checked_malloc(sizeof(struct command));
+
+  tmp->type = type;
+  tmp->status = -1;
+
+  if (type == SUBSHELL_COMMAND)
+  {
+    tmp->u.subshell_command = cmd1;
+  }
+  else
+  {
+    tmp->u.command[0] = cmd1;
+    tmp->u.command[1] = cmd2;
+  }
+
+  return tmp;
+}
+
+command_t
+arrange_tree_nodes (command_t cmd1,
+                    command_t cmd2,
+                    enum command_type type)
+{
+  if (cmd_type == SEQUENCE_COMMAND || cmd_type == PIPE_COMMAND ||
+      cmd2 == NULL || cmd2->type == SUBSHELL_COMMAND ||
+      cmd2->type == SIMPLE_COMMAND)
+  {
+
+  }
+  else
+  {
+    arrange_tree_nodes((cmd1, cmd2->u.command[0]), cmd2->u.command[1], cmd2->type);
+  }
 }
 
 // FIXME: DONE!!!
@@ -157,7 +302,7 @@ create_simple_command (token_t token)
 // FIXME: DONE!!!
 // Create a subshell command
 command_t
-create_subshell_command (command_t *commands){
+create_subshell_command (command_t commands){
   // Allocate memory for the command
   command_t subshell_command = checked_malloc(sizeof(struct command));
 
@@ -166,7 +311,7 @@ create_subshell_command (command_t *commands){
   subshell_command->status = -1;
   subshell_command->input = NULL;
   subshell_command->output = NULL;
-  subshell_command->u.subshell_command = *commands;
+  subshell_command->u.subshell_command = commands;
 
   return subshell_command;
 }
@@ -267,14 +412,14 @@ make_command_stream (int (*get_next_byte) (void *),
           }
           else
           {
-            error(1, 0, "%d: ERR", line_number);
+            print_error_and_exit(line_number, "GIVE ME A NAME :P .");
           }      
           break;
         case '\n': // End of line
           create_token(tokens_head, current_token, true, "\n\0");
           break;
         default:
-          error(1, 0, "%d: ERR", line_number);
+          print_error_and_exit(line_number, "GIVE ME A NAME :P .");
         }
     }
 
@@ -289,17 +434,20 @@ make_command_stream (int (*get_next_byte) (void *),
             current_command_stream = NULL;
 
   current_token = tokens_head;
+  line_number = 1;
   while (current_token != NULL)
   {
     // Create a tree for of commands
-    command_t command_tree = gen_command_tree(current_token); // TODO: Update this function
+    command_t command_tree = NULL;
+    if ((command_tree = gen_command_tree(current_token, &line_number)) == NULL);
+      break;
 
     // Allocate a new node
     command_stream_t temp = checked_malloc(sizeof(struct command_stream));
 
     // Add data to the node
     temp->next = NULL;
-    temp->cmd = NULL; // TODO: Get the command tree here instead of NULL
+    temp->cmd = command_tree;
 
     // Add node to the list
     if (command_stream_head == NULL)
