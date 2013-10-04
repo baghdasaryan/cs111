@@ -11,7 +11,7 @@ typedef struct token *token_t;
 struct token
 {
   struct token *next;
-  bool is_command;
+  bool is_special_command;
   char* data;
 };
 
@@ -19,7 +19,7 @@ struct token
 void
 create_token (token_t head,
               token_t current,
-              bool is_command,
+              bool is_special_command,
               char *token)
 {
   // Allocate a new node
@@ -27,7 +27,7 @@ create_token (token_t head,
 
   // Add data to the node
   temp->next = NULL;
-  temp->is_command = is_command;
+  temp->is_special_command = is_special_command;
   temp->data = (char*) checked_malloc(strlen(token) * sizeof(char));
   strcpy(temp->data, token);
 

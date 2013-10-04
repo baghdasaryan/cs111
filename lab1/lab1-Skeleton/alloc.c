@@ -41,3 +41,4 @@ checked_grow_alloc (void *ptr, size_t *size)
   *size = *size < max / 2 ? 2 * *size : max;
   return checked_realloc (ptr, *size);
 }
+
