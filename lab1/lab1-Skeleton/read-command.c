@@ -485,8 +485,20 @@ make_command_stream (int (*get_next_byte) (void *),
 command_t
 read_command_stream (command_stream_t s)
 {
-  /* FIXME: Replace this with your implementation too.  */
-  error(1, 0, "command reading not yet implemented");
-  return 0;
+  //free memory allocated by tokens
+  //return each command from command_tree
+  if ( s != NULL){
+    command_stream_t curr_stream = s;
+    //free memory
+    if(curr_stream != NULL){
+      command_stream_t temp = curr_stream->prev;
+      free(temp->cmd);
+      free(temp);
+    }
+    //update current command_stream
+    s = s->next;
+    return s->cmd;
+  }
+  return NULL;
 }
 

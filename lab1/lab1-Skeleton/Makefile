@@ -2,7 +2,7 @@
 
 CC = gcc
 # Ignoring warnings so that the progarm would compile
-CFLAGS = -g -Wall -Wextra #-Werror
+CFLAGS = -g -Wall -Wextra -Werror
 LAB = 1
 DISTDIR = lab1-$(USER)
 CHECK_DIST = ./check-dist
