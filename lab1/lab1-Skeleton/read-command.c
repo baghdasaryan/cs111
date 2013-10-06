@@ -333,7 +333,7 @@ gen_command_tree (token_t *token, size_t *line_num)
     if (subshell_cmds == NULL)
       print_error_and_exit(*line_num, "Failed to generate a command tree for a subshell command.");
     else if (!streq((*token)->data, ")"))
-      print_error_and_exit(*line_num, "GIVE ME A NAME :P .");
+      print_error_and_exit(*line_num, "Please make sure that the subshell command is correct.");
 
     cmd = create_subshell_command(subshell_cmds);
     *token = (*token)->next;
