@@ -305,7 +305,7 @@ set_command_output (command_t cmd,
 // Generate a tree of commands to be saved in command stream (for further
 // execution)
 command_t
-gen_command_tree (token_t *token, size_t *line_num)
+gen_command_tree (token_t *token, size_t *line_num, size_t * num_subshell)
 {
   command_t cmd = NULL;
 
@@ -326,9 +326,10 @@ gen_command_tree (token_t *token, size_t *line_num)
   }
   else if (streq((*token)->data, "("))
   {
+    (*num_subshell)++;
     // Process a subshell command
     *token = (*token)->next;
-    command_t subshell_cmds = gen_command_tree(token, line_num);
+    command_t subshell_cmds = gen_command_tree(token, line_num, num_subshell);
 
     if (subshell_cmds == NULL)
       print_error_and_exit(*line_num, "Failed to generate a command tree for a subshell command.");
@@ -346,12 +347,21 @@ gen_command_tree (token_t *token, size_t *line_num)
   set_command_input(cmd, token, *line_num);
   set_command_output(cmd, token, *line_num);
 
-  if (*token == NULL || streq((*token)->data, ")"))
+  if (*token == NULL || streq((*token)->data, ")")){
+    (*num_subshell)--;
+    //parantheses didn't match
+    if( *num_subshell != 0){
+      print_error_and_exit(*line_num, "Parantheses didn't match.");
+    }
     return cmd;
+  }
   else if (streq((*token)->data, "\n"))
   {
     *token = (*token)->next;
     (*line_num)++;
+    if( *num_subshell != 0){
+      print_error_and_exit(*line_num, "Parantheses didn't match.");
+    }
     return cmd;
   }
 
@@ -360,7 +370,7 @@ gen_command_tree (token_t *token, size_t *line_num)
   command_t cmd2 = checked_malloc(sizeof(struct command));
 
   *token = (*token)->next;
-  cmd2 = gen_command_tree(token, line_num);
+  cmd2 = gen_command_tree(token, line_num, num_subshell);
 
   if (cmd2 == NULL)
     print_error_and_exit(*line_num, "Failed to generate a command tree.");
@@ -482,9 +492,11 @@ make_command_stream (int (*get_next_byte) (void *),
   line_number = 1;
   while (current_token != NULL)
   {
+    size_t * num_subshell = checked_malloc(sizeof(size_t));
+    *num_subshell = 0;
     // Create a tree for of commands
     command_t command_tree = NULL;
-    if ((command_tree = gen_command_tree(&current_token, &line_number)) == NULL)
+    if ((command_tree = gen_command_tree(&current_token, &line_number, num_subshell)) == NULL)
       break;
 
     // Allocate a new node
