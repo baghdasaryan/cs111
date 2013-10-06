@@ -88,4 +88,4 @@ test ! -s test.err || {
 
 ) || exit
 
-m -fr "$tmp"
+rm -fr "$tmp"

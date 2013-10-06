@@ -143,7 +143,6 @@ create_command (command_t cmd1,
                 command_t cmd2,
                 enum command_type cmd_type)
 {
-   printf("creating a command...\n");
   // Allocate memory for the command
   command_t new_cmd = checked_malloc(sizeof(struct command));
 
@@ -173,34 +172,24 @@ set_precedence (command_t cmd1,
                 command_t cmd2,
                 enum command_type cmd_type)
 {
-  printf("%s", *(cmd1->u.word));
   // Create commands based on precedence
   if (cmd_type == SEQUENCE_COMMAND || //cmd_type == PIPE_COMMAND || 
       cmd2 == NULL || cmd2->type == SUBSHELL_COMMAND ||
       cmd2->type == SIMPLE_COMMAND)
   {
-    printf(" %s", *(cmd2->u.word));
-    printf("\nfirst check\n\n");
     return (create_command(cmd1, cmd2, cmd_type));
   }
   else if (cmd_type == AND_COMMAND || cmd_type == OR_COMMAND)
   {
-    if (cmd2->type == PIPE_COMMAND) {
-    printf("\nsecond check\n\n");
+    if (cmd2->type == PIPE_COMMAND)
       return (create_command(cmd1, cmd2, cmd_type));
-}
-    else{
-    printf("\nthird check\n\n");
+    else
       return (create_command(set_precedence(cmd1, cmd2->u.command[0], cmd_type),
                              cmd2->u.command[1],
-                             cmd2->type));}
+                             cmd2->type));
   }
   else
   {
-    printf("\nfourth check\n\n");
-    //return (create_command(cmd1,//set_precedence(cmd1, cmd2->u.command[0], cmd2->type),
-    //                       cmd2,//->u.command[1],
-    //                       cmd_type));
     return (create_command(set_precedence(cmd1, cmd2->u.command[0], cmd_type),
                            cmd2->u.command[1],
                            cmd2->type));
