@@ -17,13 +17,13 @@ struct token
 
 // Add a new item to the list
 void
-create_token (token_t head_token,
-              token_t current_token,
+create_token (token_t *head_token,
+              token_t *current_token,
               bool is_special_command,
-              char *token)
+              const char *token)
 {
   // Allocate a new node
-  token_t temp = (token_t) checked_malloc(sizeof(token_t));
+  token_t temp = (token_t) checked_malloc(sizeof(struct token));
 
   // Add data to the node
   temp->next = NULL;
@@ -32,14 +32,14 @@ create_token (token_t head_token,
   strcpy(temp->data, token);
 
   // Insert the new node at the end of the linked list
-  if (head_token == NULL)
+  if (*head_token == NULL)
   {
-    head_token = temp;
+    *head_token = temp;
   }
   else
   {
-    current_token->next = temp;
+    (*current_token)->next = temp;
   }
-  current_token = temp;
+  *current_token = temp;
 }
 
