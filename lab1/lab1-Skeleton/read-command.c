@@ -5,9 +5,8 @@
 #include "alloc.h"
 //#include "token.h"
 //#include "core.h"
-
-#include <ctype.h>
 #include <error.h>
+#include <ctype.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
