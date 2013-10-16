@@ -61,7 +61,22 @@ run_child(void)
 				   space, so this change to 'counter' will be
 				   visible to all processes. */
 
+	// *************** //
+	// EXTRA CREDIT #7 //
+	// *************** //
+
+	if (sys_getpid() % 2 == 0) {
+		int odd_pid = 3;
+		while (odd_pid < NPROCS) {
+			sys_kill(odd_pid);
+			odd_pid += 2;
+		}
+	}
+
+	// *************** //
+
 	app_printf("Process %d lives, counter %d!\n",
 		   sys_getpid(), input_counter);
+
 	sys_exit(input_counter);
 }

@@ -10,6 +10,7 @@
  *****************************************************************************/
 
 void run_child(void);
+void run_new_thread(void);
 
 void
 start(void)
@@ -29,6 +30,9 @@ start(void)
 		do {
 			status = sys_wait(p);
 		} while (status == WAIT_TRYAGAIN);
+
+		pid_t thread = sys_newthread(&run_new_thread);
+
 		app_printf("Child %d exited with status %d!\n", p, status);
 
 		// Check whether the child process corrupted our stack.
@@ -62,3 +66,11 @@ run_child(void)
 
 	sys_exit(1000);
 }
+
+void
+run_new_thread(void)
+{
+	app_printf("Thread process %d!\n", sys_getpid());
+	sys_yield();
+}
+

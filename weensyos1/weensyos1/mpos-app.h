@@ -163,6 +163,53 @@ sys_wait(pid_t pid)
 }
 
 
+/*****************************************************************************
+ * sys_kill(pid)
+ *
+ *   Kills specified process pid.
+ *
+ *   Returns -1 if process pid does not exist or is the currently running
+ *   process.
+ *
+ *****************************************************************************/
+
+static inline int
+sys_kill(pid_t pid)
+{
+	int retval;
+	asm volatile("int %1\n"
+		     : "=a" (retval)
+		     : "i" (INT_SYS_KILL),
+		       "a" (pid)
+		     : "cc", "memory");
+	return retval;
+}
+
+
+/*****************************************************************************
+ * sys_newthread(start_function)
+ *
+ *   Creates a new process in a thread-like way. The new process startis with
+ *   an empty stack, the new thread starts by executing the start_function
+ *   function.
+ *
+ *   Returns pid of the new process to the parent, and 0 to the new process
+ *   itself. Function returns -1 in case of failure.
+ *
+ *****************************************************************************/
+
+static inline pid_t
+sys_newthread(void (*start_function)(void))
+{
+	pid_t pid;
+	asm volatile("int %1\n"
+		     : "=a" (pid)
+		     : "i" (INT_SYS_NEWTHREAD),
+		       "a" (start_function)
+		     : "cc", "memory");
+	return pid;
+}
+
 
 /*****************************************************************************
  * app_printf(format, ...)

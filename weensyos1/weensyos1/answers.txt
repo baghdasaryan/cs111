@@ -1,16 +1,31 @@
-Name:
-UCLA ID:
+Name: Georgi Baghdasaryan
+UCLA ID: 603 875 284
 
-Collaborators:
+Collaborators: -----
 
 -------------------------------------------------------------------------------
 
 Response to Exercise 1:
+	Replacing run(current) clause with schedule() causes processes not
+execute momentarily (sometimes), which means that scheduler will decide what
+process should execute and when (while we need this process to run
+immediately). Since this system does not provide memory isolation, one process
+can access and modify another process's memory (e.g. change pid). In other
+words, if scheduler run an intermediarry process, that process might modify
+our pid.
+	Answer: sys_getpid() might not return the correct value.
 
+Response to Exercise 2:
+	Answer: Please see the code.
 
+Response to Exercise 3:
+	Answer: Please see the code.
 
-Anything else you'd like us to know:
+Response to Exercise 4:
+	Answer: Please see the code.
 
-
+Response to Exercise 5:
 
 Extra credit exercises:
+ * Completed extra credit exercises 6 and 7.
+

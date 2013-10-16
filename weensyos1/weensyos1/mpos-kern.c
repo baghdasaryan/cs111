@@ -125,6 +125,7 @@ start(void)
  *****************************************************************************/
 
 static pid_t do_fork(process_t *parent);
+static pid_t do_newthread(void (*start_function)(void), process_t *process);
 
 void
 interrupt(registers_t *reg)
@@ -186,17 +187,42 @@ interrupt(registers_t *reg)
 		if (p <= 0 || p >= NPROCS || p == current->p_pid
 		    || proc_array[p].p_state == P_EMPTY)
 			current->p_registers.reg_eax = -1;
-		else if (proc_array[p].p_state == P_ZOMBIE)
+		else if (proc_array[p].p_state == P_ZOMBIE) {
 			current->p_registers.reg_eax = proc_array[p].p_exit_status;
-		else
-			current->p_registers.reg_eax = WAIT_TRYAGAIN;
+			proc_array[p].p_state = P_EMPTY;
+		}
+		else {
+			current->p_state = P_BLOCKED;
+			current->wait_pid = p;
+		}
 		schedule();
+	}
+
+	case INT_SYS_KILL: {
+		pid_t p = current->p_registers.reg_eax;
+		if (p <= 0 || p >= NPROCS || p == current->p_pid
+		    || proc_array[p].p_state == P_EMPTY)			
+			current->p_registers.reg_eax = -1;
+		else if (proc_array[p].p_state != P_ZOMBIE) {
+			proc_array[p].p_state = P_ZOMBIE;
+			proc_array[p].p_exit_status = -1;
+			current->p_registers.reg_eax = 1;
+		}
+		else 
+			current->p_registers.reg_eax = 1;
+		run(current);
+	}
+
+	case INT_SYS_NEWTHREAD: {
+		void (*start_function)(void) = (void(*) (void)) current->p_registers.reg_eax;
+		pid_t new_thread = do_newthread(start_function, current);
+		current->p_registers.reg_eax = new_thread;
+		run(current);
 	}
 
 	default:
 		while (1)
 			/* do nothing */;
-
 	}
 }
 
@@ -222,7 +248,6 @@ static void copy_stack(process_t *dest, process_t *src);
 static pid_t
 do_fork(process_t *parent)
 {
-	// YOUR CODE HERE!
 	// First, find an empty process descriptor.  If there is no empty
 	//   process descriptor, return -1.  Remember not to use proc_array[0].
 	// Then, initialize that process descriptor as a running process
@@ -240,7 +265,28 @@ do_fork(process_t *parent)
 	// You need to set one other process descriptor field as well.
 	// Finally, return the child's process ID to the parent.
 
-	return -1;
+	pid_t pid = -1;
+
+	// Find an empty process
+	pid_t tmp;
+	for (tmp = 1; tmp < NPROCS; tmp++) {
+		if (proc_array[tmp].p_state == P_EMPTY) {
+			pid = tmp;
+			break;
+		}
+	}
+
+	// Exit if can;t find an empty process
+	if (pid == -1)
+		return -1;
+
+	// Set registers, process state and stack
+	proc_array[pid].p_state = P_RUNNABLE;
+	proc_array[pid].p_registers = parent->p_registers;
+	copy_stack(&proc_array[pid], parent);
+	proc_array[pid].p_registers.reg_eax = 0;
+
+	return pid;
 }
 
 static void
@@ -249,7 +295,6 @@ copy_stack(process_t *dest, process_t *src)
 	uint32_t src_stack_bottom, src_stack_top;
 	uint32_t dest_stack_bottom, dest_stack_top;
 
-	// YOUR CODE HERE!
 	// This function copies the 'src' process's stack into the 'dest'
 	// process's stack region.  Then it sets 'dest's stack pointer to
 	// correspond to 'src's stack pointer.
@@ -292,20 +337,43 @@ copy_stack(process_t *dest, process_t *src)
 	//                    src_stack_top      dest_stack_top
 	//                     == 0x2C0000         == 0x300000
 
-	// Your job is to figure out how to calculate these variables,
-	// and then how to actually copy the stack.  (Hint: use memcpy.)
-	// We have done one for you.
-
-	// YOUR CODE HERE!
-
-	src_stack_top = 0 /* YOUR CODE HERE */;
+	// Find locations of processes (both top and bottom) in the stack
+	src_stack_top = src->p_pid * PROC_STACK_SIZE + PROC1_STACK_ADDR;
 	src_stack_bottom = src->p_registers.reg_esp;
-	dest_stack_top = 0 /* YOUR CODE HERE */;
-	dest_stack_bottom = 0 /* YOUR CODE HERE: calculate based on the
-				 other variables */;
-	// YOUR CODE HERE: memcpy the stack and set dest->p_registers.reg_esp
+	dest_stack_top = dest->p_pid * PROC_STACK_SIZE + PROC1_STACK_ADDR;
+	dest_stack_bottom = dest_stack_top - (src_stack_top - src_stack_bottom);
+
+	// Copy the stack and set the stack pointer
+	memcpy((void*) dest_stack_bottom, (void*) src_stack_bottom, (src_stack_top - src_stack_bottom));
+	dest->p_registers.reg_esp = dest_stack_bottom;
 }
 
+static pid_t
+do_newthread(void (*start_function)(void), process_t *process)
+{
+	pid_t pid = -1;
+
+	// Find an empty process
+	pid_t tmp;
+	for (tmp = 1; tmp < NPROCS; tmp++) {
+		if (proc_array[tmp].p_state == P_EMPTY) {
+			pid = tmp;
+			break;
+		}
+	}
+
+	// Exit if can;t find an empty process
+	if (pid == -1)
+		return -1;
+
+	// Set registers and the process state
+	proc_array[pid].p_state = P_RUNNABLE;
+	special_registers_init(&proc_array[pid]);
+	proc_array[pid].p_registers.reg_eip = (int) start_function;
+	proc_array[pid].p_registers.reg_esp = PROC1_STACK_ADDR + pid * PROC_STACK_SIZE;
+
+	return pid;
+}
 
 
 /*****************************************************************************
@@ -325,5 +393,13 @@ schedule(void)
 		pid = (pid + 1) % NPROCS;
 		if (proc_array[pid].p_state == P_RUNNABLE)
 			run(&proc_array[pid]);
+		else if(proc_array[pid].p_state == P_BLOCKED) {
+			if(proc_array[(proc_array[pid].wait_pid)].p_state == P_ZOMBIE) {
+				proc_array[pid].p_registers.reg_eax = proc_array[proc_array[pid].wait_pid].p_exit_status;
+				proc_array[pid].p_state = P_RUNNABLE;
+				proc_array[pid].wait_pid = -1;
+				run(&proc_array[pid]);
+			}
+		}
 	}
 }
