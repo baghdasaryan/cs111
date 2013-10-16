@@ -153,12 +153,7 @@ get_word (int (*get_next_byte) (void *),
   free(buffer);
 }
 
-
-// *********************************************
-// *********************************************
-// *********************************************
-
-// Print an error message to stderr, and exit the program
+// Print an error message to stderr and exit the program
 void
 print_error_and_exit (size_t line_num,
                       const char *error_msg)
@@ -370,9 +365,9 @@ gen_command_tree (token_t *token, size_t *line_num, size_t * num_subshell)
     command_t subshell_cmds = gen_command_tree(token, line_num, num_subshell);
 
     if (subshell_cmds == NULL)
-      print_error_and_exit(*line_num, "Failed to generate a command tree for a subshell command.");
+      print_error_and_exit(*line_num, "Failed to generate a command tree for subshell command(s).");
     else if (!streq((*token)->data, ")"))
-      print_error_and_exit(*line_num, "Please make sure that the subshell command is correct.");
+      print_error_and_exit(*line_num, "Please make sure that subshell command(s) is/are correct.");
 
     cmd = create_subshell_command(subshell_cmds);
     *token = (*token)->next;
@@ -385,11 +380,12 @@ gen_command_tree (token_t *token, size_t *line_num, size_t * num_subshell)
   set_command_input(cmd, token, *line_num);
   set_command_output(cmd, token, *line_num);
 
-  if (*token == NULL || streq((*token)->data, ")")){
+  if (*token == NULL || streq((*token)->data, ")"))
+  {
     (*num_subshell)--;
-    //parantheses didn't match
-    if( *num_subshell != 0){
-      print_error_and_exit(*line_num, "Parantheses didn't match.");
+    if (*num_subshell != 0)
+    {
+      print_error_and_exit(*line_num, "Parantheses mismatch.");
     }
     return cmd;
   }
@@ -397,8 +393,9 @@ gen_command_tree (token_t *token, size_t *line_num, size_t * num_subshell)
   {
     *token = (*token)->next;
     (*line_num)++;
-    if( *num_subshell != 0){
-      print_error_and_exit(*line_num, "Parantheses didn't match.");
+    if (*num_subshell != 0)
+    {
+      print_error_and_exit(*line_num, "Parantheses mismatch.");
     }
     return cmd;
   }
@@ -416,16 +413,11 @@ gen_command_tree (token_t *token, size_t *line_num, size_t * num_subshell)
   return set_precedence(cmd, cmd2, cmd2_type);
 }
 
-
-// *********************************************
-// *********************************************
-// *********************************************
-
-// ******************************** //
-// ***                          *** //
-// ***   Helper Functions End   *** //
-// ***                          *** //
-// ******************************** //
+// *********************************** //
+// ***                             *** //
+// ***   End of Helper Functions   *** //
+// ***                             *** //
+// *********************************** //
 
 
 // TODO: Performance could be potentially improved if we could start
@@ -564,33 +556,21 @@ make_command_stream (int (*get_next_byte) (void *),
 command_t
 read_command_stream (command_stream_t *s)
 {
-  //free memory allocated by tokens
   //return each command from command_tree
   if (*s != NULL){
-    //free memory
+    // Free previous command stream node
     if ((*s)->prev != NULL){
       free((*s)->prev->cmd);
       free((*s)->prev);
     }
     command_t tmp = (*s)->cmd;
+
+    // Advance command_stream pointer
     *s = (*s)->next;
 
     return tmp;
   }
-/*
-  if (*s != NULL){
-    command_stream_t temp = *s;
-    *s = (*s)->next;
-    //free memory
-    if (temp->prev != NULL){
-      free(temp->prev->cmd);
-      free(temp->prev);
-    }
-    //update current command_stream
-    return temp->cmd;
-  }
 
-*/
   return NULL;
 }
 
