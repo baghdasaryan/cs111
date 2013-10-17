@@ -9,6 +9,7 @@
 #include <stdio.h>
 #include <core.c>
 #include <sys/wait.h>
+#include <sys/stat.h>
 
 /* FIXME: You may need to add #include directives, macro definitions,
    static function definitions, etc.  */
@@ -17,6 +18,37 @@ int
 command_status (command_t c)
 {
   return c->status;
+}
+
+void
+IO_redirect(command_t c){
+	if(c->input != NULL){
+		int fd = open(c->input, O_RDONLY);
+		//Fail to open the file
+		if(fd < 0){
+			print_system_error();
+		}
+		//Fail to set standard input
+		if(dup2(fd,STDIN_FILENO) < 0){
+			print_system_error();
+		}
+		//Fail to close file descriptor
+		if(close(fd) < 0){
+			print_system_error();
+		}
+	}
+	else if(c->output != NULL){
+		int fd = open(c->output, O_CREATE | O_WRONLY);
+		if(fd < 0){
+			print_system_error();
+		}
+		if(dup2(fd,STDOUT_FILENO) <0){
+			print_system_error();
+		}
+		if(close(fd) < 0){
+			print_syste_error();
+		}
+	}
 }
 
 void
@@ -50,23 +82,23 @@ void execute_simple_command(command_t cmd, bool time_travel){
 	pid_t pid;
 	int status;
 	char ** argv;
-	char * filename;
 
+	argv = cmd->u.word;
 	pid = fork();
 	if(pid < 0){
 		//could not fork child process
 	}
 	else if(pid == 0){
 		//inside child process
-		//
-		if(execvp(filename, argv) < 0){
+		//Set IO
+		IO_redirect(cmd);
+		if(execvp(argv[0], argv) < 0){
 			//Fail to execute simple command
 			print_system_error();
 		}
 
 	}
 	else{
-		//TODO: Do IO here
 		//inside parent process
 		//wait for child process to finish
 		if( waitpid(pid, &status,-1) == -1){
@@ -76,25 +108,27 @@ void execute_simple_command(command_t cmd, bool time_travel){
 	cmd->status = WIFEXITED(status);
 }
 
-void execute_pipe_command(command_t cmd, bool time_travel){
+void execute_pipe_command(command_t cmd){
 
 }
 
-void execute_or_command(command_t cmd, bool time_travel){
+void execute_or_command(command_t cmd){
 
 }
 
-void execute_sequence_command(command_t cmd, bool time_travel){
+void execute_sequence_command(command_t cmd){
 
 }
 
-void execute_and_command(command_t cmd, bool time_travel){
+void execute_and_command(command_t cmd){
 
 }
 
-void execute_subshell_command(command_t cmd, bool time_travel){
+void execute_subshell_command(command_t cmd){
 	//TODO: Do IO here
 	command_t subshell_cmd = cmd->u.subshell_command;
 	execute_command(subshell_command, time_travel);
 	cmd->status = subshell_command->status;
 }
+
+
