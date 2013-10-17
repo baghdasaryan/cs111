@@ -121,7 +121,16 @@ void execute_sequence_command(command_t cmd){
 }
 
 void execute_and_command(command_t cmd){
-
+	command_t left = cmd->u.command[0];
+	command_t right = cmd->u.command[1];
+	//Use false for now, as we may change it later for part c
+	execute_command(left,false);
+	cmd->status = left->status;
+	//execute rightside command if leftside exit normally
+	if(left->status == 0){
+		execute_command(right);
+		cmd->status = right->status;
+	}
 }
 
 void execute_subshell_command(command_t cmd){
