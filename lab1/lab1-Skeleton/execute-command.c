@@ -113,7 +113,14 @@ void execute_pipe_command(command_t cmd){
 }
 
 void execute_or_command(command_t cmd){
-
+	command_t left = cmd->u.command[0];
+	command_t right = cmd->u.command[1];
+	execute_command(left,false);
+	cmd->status = left->status;
+	if(left->status != 0){
+		execute_command(right,false);
+		cmd->status = right->status;
+	}
 }
 
 void execute_sequence_command(command_t cmd){
@@ -128,13 +135,14 @@ void execute_and_command(command_t cmd){
 	cmd->status = left->status;
 	//execute rightside command if leftside exit normally
 	if(left->status == 0){
-		execute_command(right);
+		execute_command(right,false);
 		cmd->status = right->status;
 	}
 }
 
 void execute_subshell_command(command_t cmd){
 	//TODO: Do IO here
+	IO_redirect(cmd);
 	command_t subshell_cmd = cmd->u.subshell_command;
 	execute_command(subshell_command, time_travel);
 	cmd->status = subshell_command->status;
