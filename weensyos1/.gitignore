@@ -1,3 +1,6 @@
 # Lab specific files
 weensyos1/*.tar.gz
+weensyos1/obj/
+weensyos1/mpos.img
+weensyos1/mkbootdisk
 
