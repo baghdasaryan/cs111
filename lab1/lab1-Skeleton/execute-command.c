@@ -47,7 +47,7 @@ IO_redirect(command_t c){
 			print_system_error();
 		}
 		if(close(fd) < 0){
-			print_syste_error();
+			print_system_error();
 		}
 	}
 }
@@ -61,21 +61,20 @@ execute_command (command_t c, bool time_travel)
   enum command_type cur_cmd_type = c->type;
   switch (cur_cmd_type) {
   	case AND_COMMAND: 
-
+  		execute_and_command(c,false);
   	case SEQUENCE_COMMAND: 
-
+  		execute_sequence_command(c,false);
   	case OR_COMMAND:
-
+  		execute_or_command(c,false);
   	case PIPE_COMMAND:
-
+  		execute_pipe_command(c,false);
   	case SIMPLE_COMMAND:
-
+  		execute_simple_command(c,false);
   	case SUBSHELL_COMMAND:
-
+  		execute_subshell_command(c,false);
   	default: //Some error handling code
 
   }
-  error (1, 0, "command execution not yet implemented");
 }
 
 //fork a child process to execute simple command
@@ -110,7 +109,38 @@ void execute_simple_command(command_t cmd, bool time_travel){
 }
 
 void execute_pipe_command(command_t cmd){
+	//create fd for both input and output
+	int fd[2];
+	command_t left = cmd->u.command[0];
+	command_t right = cmd->u.command[1];
+	//create pipe
+	if( pipe(fd) < 0){
+		//fail to create a pipe
+		print_system_error();
+	}
+	//create child process
+	pid_t pid = fork();
 
+	//fail to create a child process
+	if( pid < (pid_t)0){
+		print_system_error();
+	}
+	else if( pid == (pid_t)0){ //inside child process
+		//close input side of pipe
+		close(fd[1]);
+		//copy pipe output fd to STDOUT
+		dup2(fd[0],STDOUT_FILENO);
+		//close output side of pipe
+		close(fd[0]);
+		//execute left command
+		execute_command(left, false);
+		//set the exit status
+
+	}
+	else {
+		//inside parent process
+		close(fd[0]);
+	}
 }
 
 void execute_or_command(command_t cmd){
@@ -125,7 +155,11 @@ void execute_or_command(command_t cmd){
 }
 
 void execute_sequence_command(command_t cmd){
-
+	command_t first = cmd->u.command[0];
+	command_t second = cmd->u.command[1];
+	execute_command(first);
+	execute_command(second);
+	cmd->status = second->status;
 }
 
 void execute_and_command(command_t cmd){
@@ -142,7 +176,6 @@ void execute_and_command(command_t cmd){
 }
 
 void execute_subshell_command(command_t cmd){
-	//TODO: Do IO here
 	IO_redirect(cmd);
 	command_t subshell_cmd = cmd->u.subshell_command;
 	execute_command(subshell_command, time_travel);
