@@ -2,12 +2,13 @@
 
 #include "command.h"
 #include "command-internals.h"
+
 #include <stdlib.h>
 #include <error.h>
 #include <sys/types.h>
 #include <unistd.h>
 #include <stdio.h>
-#include <core.c>
+//#include <core.c>
 #include <sys/wait.h>
 #include <sys/stat.h>
 
