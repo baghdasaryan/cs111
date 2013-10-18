@@ -2,7 +2,7 @@
 
 #include "command.h"
 #include "command-internals.h"
-
+#include <errno.h>
 #include <stdlib.h>
 #include <error.h>
 #include <sys/types.h>
@@ -19,6 +19,13 @@ int
 command_status (command_t c)
 {
   return c->status;
+}
+
+//print system call error and exit
+void
+print_system_error(){
+	fprintf(stderr, "%s\n", stderror(errno));
+	exit(1);
 }
 
 void
