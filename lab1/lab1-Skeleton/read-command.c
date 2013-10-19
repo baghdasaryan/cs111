@@ -276,7 +276,7 @@ create_subshell_command (command_t commands){
   return subshell_command;
 }
 
-// Return a command tye of the token, or exit with an error if incorrect token
+// Return a command type of the token, or exit with an error if incorrect token
 enum command_type
 get_command_type(token_t token,
                  size_t line_num)
@@ -463,7 +463,7 @@ make_command_stream (int (*get_next_byte) (void *),
           create_token(&tokens_head, &current_token, true, "(\0");
           break;
         case ')':  // End subshell
-          create_token(&tokens_head, &current_token, true, "(\0");
+          create_token(&tokens_head, &current_token, true, ")\0");
           break;
         case '<':  // Redirect output
           create_token(&tokens_head, &current_token, true, "<\0");
