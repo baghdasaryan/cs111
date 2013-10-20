@@ -1,3 +1,6 @@
+#ifndef TOKEN_H
+#define TOKEN_H
+
 // Command token interface
 
 #include "alloc.h"
@@ -42,4 +45,6 @@ create_token (token_t *head_token,
   }
   *current_token = temp;
 }
+
+#endif  // TOKEN_H
 

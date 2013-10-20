@@ -3,16 +3,10 @@
 #include "command.h"
 #include "command-internals.h"
 #include "alloc.h"
-//#include "token.h"
-//#include "core.h"
+#include "token.h"
+#include "core.h"
 
-#include <error.h>
 #include <ctype.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <stdbool.h>
-
 
 struct command_stream
 {
@@ -23,41 +17,6 @@ struct command_stream
 
 typedef struct token *token_t;
 
-// A data structure to represent a likned list of tokens
-struct token
-{
-  struct token *next;
-  bool is_special_command;
-  char* data;
-};
-
-// Add a new item to the list
-void
-create_token (token_t *head_token,
-              token_t *current_token,
-              bool is_special_command,
-              const char *token)
-{
-  // Allocate a new node
-  token_t temp = (token_t) checked_malloc(sizeof(struct token));
-
-  // Add data to the node
-  temp->next = NULL;
-  temp->is_special_command = is_special_command;
-  temp->data = (char*) checked_malloc(strlen(token) * sizeof(char));
-  strcpy(temp->data, token);
-
-  // Insert the new node at the end of the linked list
-  if (*head_token == NULL)
-  {
-    *head_token = temp;
-  }
-  else
-  {
-    (*current_token)->next = temp;
-  }
-  *current_token = temp;
-}
 
 // ********************************** //
 // ***                            *** //
@@ -153,24 +112,8 @@ get_word (int (*get_next_byte) (void *),
   free(buffer);
 }
 
-// Print an error message to stderr and exit the program
-void
-print_error_and_exit (size_t line_num,
-                      const char *error_msg)
-{
-  error(1, 0, "%zd: %s", line_num, error_msg);
-}
-
-// Check if two character strings are equal
-bool
-streq (const char *str1,
-       const char *str2)
-{
-  return (strcmp(str1, str2) == 0);
-}
-
 // Generate a command for SEQUENCE_COMMAND, SIMPLE_COMMAND, PIPE_COMMAND, and
-// SUBSHELL_COMMAND
+// SUBSHELL_COMMAND types
 command_t
 create_command (command_t cmd1,
                 command_t cmd2,
@@ -276,7 +219,7 @@ create_subshell_command (command_t commands){
   return subshell_command;
 }
 
-// Return a command type of the token, or exit with an error if incorrect token
+// Return command type of the token, or exit with an error if incorrect token
 enum command_type
 get_command_type(token_t token,
                  size_t line_num)
@@ -292,7 +235,7 @@ get_command_type(token_t token,
   else if (streq(token->data, "|"))
     cmd_type = PIPE_COMMAND;
   else
-    print_error_and_exit(line_num, "Unknown command type.");
+    print_parsing_error_and_exit(line_num, "Unknown command type.");
 
   return cmd_type;
 }
@@ -312,7 +255,7 @@ set_command_input (command_t cmd,
       *token = (*token)->next;
     }
     else
-      print_error_and_exit(line_num, "Cannot read input from a command.");
+      print_parsing_error_and_exit(line_num, "Cannot read input from a command.");
   }
 }
 
@@ -331,7 +274,7 @@ set_command_output (command_t cmd,
       *token = (*token)->next;
     }
     else
-      print_error_and_exit(line_num, "Cannot write output to a command.");
+      print_parsing_error_and_exit(line_num, "Cannot write output to a command.");
   }
 }
 
@@ -365,16 +308,16 @@ gen_command_tree (token_t *token, size_t *line_num, size_t * num_subshell)
     command_t subshell_cmds = gen_command_tree(token, line_num, num_subshell);
 
     if (subshell_cmds == NULL)
-      print_error_and_exit(*line_num, "Failed to generate a command tree for subshell command(s).");
+      print_parsing_error_and_exit(*line_num, "Failed to generate a command tree for subshell command(s).");
     else if (!streq((*token)->data, ")"))
-      print_error_and_exit(*line_num, "Please make sure that subshell command(s) is/are correct.");
+      print_parsing_error_and_exit(*line_num, "Please make sure that subshell command(s) is/are correct.");
 
     cmd = create_subshell_command(subshell_cmds);
     *token = (*token)->next;
   }
   else
   {
-    print_error_and_exit(*line_num, "Unrecognized command.");
+    print_parsing_error_and_exit(*line_num, "Unrecognized command.");
   }
 
   set_command_input(cmd, token, *line_num);
@@ -385,7 +328,7 @@ gen_command_tree (token_t *token, size_t *line_num, size_t * num_subshell)
     (*num_subshell)--;
     if (*num_subshell != 0)
     {
-      print_error_and_exit(*line_num, "Parantheses mismatch.");
+      print_parsing_error_and_exit(*line_num, "Parantheses mismatch.");
     }
     return cmd;
   }
@@ -395,7 +338,7 @@ gen_command_tree (token_t *token, size_t *line_num, size_t * num_subshell)
     (*line_num)++;
     if (*num_subshell != 0)
     {
-      print_error_and_exit(*line_num, "Parantheses mismatch.");
+      print_parsing_error_and_exit(*line_num, "Parantheses mismatch.");
     }
     return cmd;
   }
@@ -408,7 +351,7 @@ gen_command_tree (token_t *token, size_t *line_num, size_t * num_subshell)
   cmd2 = gen_command_tree(token, line_num, num_subshell);
 
   if (cmd2 == NULL)
-    print_error_and_exit(*line_num, "Failed to generate a command tree.");
+    print_parsing_error_and_exit(*line_num, "Failed to generate a command tree.");
 
   return set_precedence(cmd, cmd2, cmd2_type);
 }
@@ -422,7 +365,7 @@ gen_command_tree (token_t *token, size_t *line_num, size_t * num_subshell)
 
 // TODO: Performance could be potentially improved if we could start
 //         constructing the command stream tree right away (without first
-//         saving tokens)
+//         building a linked list of tokens)
 command_stream_t 
 make_command_stream (int (*get_next_byte) (void *),
 		     void *get_next_byte_argument)
@@ -495,7 +438,7 @@ make_command_stream (int (*get_next_byte) (void *),
           }
           else
           {
-            print_error_and_exit(line_number, "Unknown token, should be &&.");
+            print_parsing_error_and_exit(line_number, "Unknown token, should be &&.");
           }
           break;
         case '\n': // End of line
@@ -503,7 +446,7 @@ make_command_stream (int (*get_next_byte) (void *),
           create_token(&tokens_head, &current_token, true, "\n\0");
           break;
         default:
-          print_error_and_exit(line_number, "Unknown token.");
+          print_parsing_error_and_exit(line_number, "Unknown token.");
         }
     }
 

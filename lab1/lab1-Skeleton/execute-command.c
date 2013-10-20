@@ -2,76 +2,61 @@
 
 #include "command.h"
 #include "command-internals.h"
+#include "core.h"
 
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <sys/stat.h>
-
-#include <stdlib.h>
-#include <stdio.h>
-#include <string.h>
-#include <errno.h>
-#include <error.h>
 #include <unistd.h>
 #include <fcntl.h>
 
-
+// Get command status
 int
 command_status (command_t c)
 {
   return c->status;
 }
 
-//print system call error and exit
 void
-print_system_error(){
-	fprintf(stderr, "%s\n", strerror(errno));
-	exit(1);
-}
-
-void
-IO_redirect(command_t c){
-  if (c->input != NULL) {
+IO_redirect (command_t c)
+{
+  if (c->input != NULL)
+  {
     int fd = open(c->input, O_RDONLY);
-    //Fail to open the file
-    if (fd < 0) {
-      print_system_error();
-    }
-    //Fail to set standard input
-    if (dup2(fd, STDIN_FILENO) < 0) {
-    	print_system_error();
-    }
-    //Fail to close file descriptor
-    if (close(fd) < 0) {
-      print_system_error();
-    }
+    if (fd < 0)
+      print_system_error_and_exit();
+    if (dup2(fd, STDIN_FILENO) < 0)
+      print_system_error_and_exit();
+    if (close(fd) < 0)
+      print_system_error_and_exit();
   }
-  else if (c->output != NULL) {
+  else if (c->output != NULL)
+  {
     int fd = open(c->output, O_CREAT | O_WRONLY);
-    if (fd < 0) {
-      print_system_error();
-    }
-    if (dup2(fd, STDOUT_FILENO) <0) {
-      print_system_error();
-    }
-    if (close(fd) < 0) {
-      print_system_error();
-    }
+    if (fd < 0)
+      print_system_error_and_exit();
+    if (dup2(fd, STDOUT_FILENO) <0)
+      print_system_error_and_exit();
+    if (close(fd) < 0)
+      print_system_error_and_exit();
   }
 }
 
 //fork a child process to execute simple command
 void
-execute_simple_command(command_t cmd, bool time_travel){
+execute_simple_command (command_t cmd,
+                        bool time_travel)
+{
   int status;
   char **argv = cmd->u.word;
 
   pid_t pid = fork();
-  if(pid < 0){
+  if (pid < 0)
+  {
     //could not fork child process
-    print_system_error();
+    print_system_error_and_exit();
   }
-  else if(pid == 0)
+  else if (pid == 0)
   {
     //inside child process
     //Set IO
@@ -79,80 +64,97 @@ execute_simple_command(command_t cmd, bool time_travel){
     if(execvp(argv[0], argv) < 0)
     {
       //Fail to execute simple command
-      print_system_error();
+      print_system_error_and_exit();
     }
   }
   else
   {
     //inside parent process
     //wait for child process to finish
-    if( waitpid(pid, &status, 0) == -1)
+    if (waitpid(pid, &status, 0) == -1)
     {
-      print_system_error();
+      print_system_error_and_exit();
     }
   }
 
   cmd->status = WIFEXITED(status);
 }
 
-void execute_pipe_command(command_t cmd){
-	//create fd for both input and output
-	int fd[2];
-	int read_status, write_status;
-	command_t left = cmd->u.command[0];
-	command_t right = cmd->u.command[1];
+void
+execute_pipe_command (command_t cmd)
+{
+  //create fd for both input and output
+  int fd[2];
+  int read_status, write_status;
+  command_t left = cmd->u.command[0];
+  command_t right = cmd->u.command[1];
 
-	//create pipe
-	if (pipe(fd) < 0){
-		//fail to create a pipe
-		print_system_error();
-	}
+  // Create pipe
+  if (pipe(fd) < 0)
+    print_system_error_and_exit();
 
-	pid_t write = fork();
-	if (write < (pid_t) 0){
-		print_system_error();
-	}
-	else if (write == (pid_t) 0){ //inside child process
-		//copy pipe output fd to STDOUT
-		dup2(fd[1], 1);
-		//close output side of pipe
-		close(fd[0]);
-		//execute left command
-		execute_command(left, false);
-		//set the exit status
+  pid_t write = fork();
+  if (write < (pid_t) 0)
+    print_system_error_and_exit();
+  else if (write == (pid_t) 0)  // child
+  {
+    // Map standard output to the end of pipe
+    dup2(fd[1], 1);
 
-		exit(left->status);
-	}
+    close(fd[0]);
+    execute_command(left, false);
 
-	pid_t read = fork();
-	if (read < (pid_t) 0){
-		print_system_error();
-	}
-	else if (read == (pid_t) 0){ //inside child process
-		//copy pipe output fd to STDOUT
-		dup2(fd[0], 0);
-		//close output side of pipe
-		close(fd[1]);
-		//execute left command
-		execute_command(right, false);
-		//set the exit status
+    // Exit with left command's status
+    exit(left->status);
+  }
 
-		exit(right->status);
-	}
-	close(fd[0]);
-	close(fd[1]);
+  pid_t read = fork();
+  if (read < (pid_t) 0)
+    print_system_error_and_exit();
+  else if (read == (pid_t) 0)  // child
+  {
+    dup2(fd[0], 0);
 
-	waitpid(write, &write_status, 0);
-	waitpid(read, &read_status, 0);
+    close(fd[1]);
+    execute_command(right, false);
 
-	if (!WIFEXITED(write_status) || !WIFEXITED(read_status))
-		print_system_error();
+    // Exit with right command's status
+    exit(right->status);
+  }
 
-	cmd->status = WEXITSTATUS(read_status);
+  // Close descriptors
+  close(fd[0]);
+  close(fd[1]);
+
+  // Wait for children
+  waitpid(write, &write_status, 0);
+  waitpid(read, &read_status, 0);
+
+  if (!WIFEXITED(write_status) || !WIFEXITED(read_status))
+    print_system_error_and_exit();
+
+  cmd->status = WEXITSTATUS(read_status);
 }
 
 void
-execute_or_command(command_t cmd)
+execute_and_command (command_t cmd)
+{
+  command_t left = cmd->u.command[0];
+  command_t right = cmd->u.command[1];
+
+  execute_command(left, false);
+  cmd->status = left->status;
+
+  // Execute rightside command if the leftside one was successful
+  if (left->status == 0)
+  {
+    execute_command(right, false);
+    cmd->status = right->status;
+  }
+}
+
+void
+execute_or_command (command_t cmd)
 {
   command_t left = cmd->u.command[0];
   command_t right = cmd->u.command[1];
@@ -160,7 +162,8 @@ execute_or_command(command_t cmd)
   execute_command(left,false);
   cmd->status = left->status;
 
-  if(left->status != 0)
+  // Execute rightside command if the leftside one was not successful
+  if (left->status != 0)
   {
     execute_command(right,false);
     cmd->status = right->status;
@@ -168,7 +171,7 @@ execute_or_command(command_t cmd)
 }
 
 void
-execute_sequence_command(command_t cmd)
+execute_sequence_command (command_t cmd)
 {
   command_t first = cmd->u.command[0];
   command_t second = cmd->u.command[1];
@@ -179,24 +182,7 @@ execute_sequence_command(command_t cmd)
 }
 
 void
-execute_and_command(command_t cmd){
-  command_t left = cmd->u.command[0];
-  command_t right = cmd->u.command[1];
-
-  //Use false for now, as we may change it later for part c
-  execute_command(left, false);
-  cmd->status = left->status;
-
-  //execute rightside command if leftside exit normally
-  if(left->status == 0)
-  {
-    execute_command(right, false);
-    cmd->status = right->status;
-  }
-}
-
-void
-execute_subshell_command(command_t cmd)
+execute_subshell_command (command_t cmd)
 {
   IO_redirect(cmd);
   command_t subshell_cmd = cmd->u.subshell_command;
@@ -205,33 +191,31 @@ execute_subshell_command(command_t cmd)
 }
 
 void
-execute_command (command_t c, bool time_travel)
+execute_command (command_t c,
+                 bool time_travel)
 {
-  /* FIXME: Replace this with your implementation.  You may need to
-     add auxiliary functions and otherwise modify the source code.
-     You can also use external functions defined in the GNU C Library.  */
-  switch (c->type) {
-  	case AND_COMMAND: 
-  		execute_and_command(c);
-		break;
-  	case SEQUENCE_COMMAND: 
-  		execute_sequence_command(c);
-		break;
-  	case OR_COMMAND:
-  		execute_or_command(c);
-		break;
-  	case PIPE_COMMAND:
-  		execute_pipe_command(c);
-		break;
-  	case SIMPLE_COMMAND:
-  		execute_simple_command(c, false);
-		break;
-  	case SUBSHELL_COMMAND:
-  		execute_subshell_command(c);
-		break;
-  	default: //Some error handling code
-		error(1, 0, "Unknown command type specified.");
-  }
+  switch (c->type)
+    {
+    case AND_COMMAND: 
+      execute_and_command(c);
+      break;
+    case SEQUENCE_COMMAND: 
+      execute_sequence_command(c);
+      break;
+    case OR_COMMAND:
+      execute_or_command(c);
+      break;
+    case PIPE_COMMAND:
+      execute_pipe_command(c);
+      break;
+    case SIMPLE_COMMAND:
+      execute_simple_command(c, false);
+      break;
+    case SUBSHELL_COMMAND:
+      execute_subshell_command(c);
+      break;
+    default:
+      print_error_and_exit("Unknown command type specified.");
+    }
 }
-
 
