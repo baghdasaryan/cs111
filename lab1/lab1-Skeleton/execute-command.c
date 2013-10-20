@@ -210,22 +210,27 @@ execute_command (command_t c, bool time_travel)
   /* FIXME: Replace this with your implementation.  You may need to
      add auxiliary functions and otherwise modify the source code.
      You can also use external functions defined in the GNU C Library.  */
-  enum command_type cur_cmd_type = c->type;
-  switch (cur_cmd_type) {
+  switch (c->type) {
   	case AND_COMMAND: 
   		execute_and_command(c);
+		break;
   	case SEQUENCE_COMMAND: 
   		execute_sequence_command(c);
+		break;
   	case OR_COMMAND:
   		execute_or_command(c);
+		break;
   	case PIPE_COMMAND:
   		execute_pipe_command(c);
+		break;
   	case SIMPLE_COMMAND:
   		execute_simple_command(c, false);
+		break;
   	case SUBSHELL_COMMAND:
   		execute_subshell_command(c);
+		break;
   	default: //Some error handling code
-		error(1, 0, "Unknown error!");
+		error(1, 0, "Unknown command type specified.");
   }
 }
 
