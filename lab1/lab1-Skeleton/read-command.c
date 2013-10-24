@@ -149,9 +149,8 @@ set_precedence (command_t cmd1,
                 enum command_type cmd_type)
 {
   // Create commands based on precedence
-  if (cmd_type == SEQUENCE_COMMAND || //cmd_type == PIPE_COMMAND || 
-      cmd2 == NULL || cmd2->type == SUBSHELL_COMMAND ||
-      cmd2->type == SIMPLE_COMMAND)
+  if (cmd_type == SEQUENCE_COMMAND || cmd2 == NULL || 
+      cmd2->type == SUBSHELL_COMMAND || cmd2->type == SIMPLE_COMMAND)
   {
     return (create_command(cmd1, cmd2, cmd_type));
   }
@@ -363,9 +362,6 @@ gen_command_tree (token_t *token, size_t *line_num, size_t * num_subshell)
 // *********************************** //
 
 
-// TODO: Performance could be potentially improved if we could start
-//         constructing the command stream tree right away (without first
-//         building a linked list of tokens)
 command_stream_t 
 make_command_stream (int (*get_next_byte) (void *),
 		     void *get_next_byte_argument)
