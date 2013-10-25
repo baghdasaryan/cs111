@@ -1,4 +1,4 @@
-Lab 1: Time travel shell
+Lab 1: Time Travel Shell
 ========================
 
 Contributors:
