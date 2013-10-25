@@ -6,7 +6,7 @@ Contributors:
 Name | UID | Email
 --- | --- | ---
 Georgi Baghdasaryan | 603 875 284 | baghdasaryan@ucla.edu  
-Sixiang Gu           | 903 943 192 | ntgsx92@gmail.com
+Sixiang Gu | 903 943 192 | ntgsx92@gmail.com
 
 Lab Description
 ---------------

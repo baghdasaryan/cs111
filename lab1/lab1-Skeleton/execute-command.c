@@ -14,7 +14,7 @@
 int
 command_status (command_t c)
 {
-  return c->status;
+  return !c->status;
 }
 
 void
@@ -165,7 +165,7 @@ execute_or_command (command_t cmd)
   // Execute rightside command if the leftside one was not successful
   if (left->status != 0)
   {
-    execute_command(right,false);
+    execute_command(right, false);
     cmd->status = right->status;
   }
 }
