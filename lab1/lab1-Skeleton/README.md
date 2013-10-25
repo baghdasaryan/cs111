@@ -3,8 +3,10 @@ Lab 1: Time travel shell
 
 Contributors:
 -------------
-Georgi   Baghdasaryan   UID: 603 875 284    baghdasaryan@ucla.edu  
-Sixiang  Gu             UID: 903 943 192
+Name | UID | Email
+--- | --- | ---
+Georgi Baghdasaryan | 603 875 284 | baghdasaryan@ucla.edu  
+Sixiang Gu           | 903 943 192 | ntgsx92@gmail.com
 
 Lab Description
 ---------------
@@ -48,11 +50,11 @@ to the parentheses at the top level:
 
 Shell scripts executed by this program all follow these rules:
 * They limit themselves to a small subset of the shell syntax, described in
-["Shell syntax subset"](#shell-syntax-subset) below.
-* Simple commands in scripts have limited behavior, described in ["Time travel
-limitations on computations"](#time-travel-limitations-on-computations) below.
-* In some cases they behave in special ways, as described in ["Don't care
-behaviors"](#dont-care-behaviors) below. 
+[Shell syntax subset](#shell-syntax-subset) below.
+* Simple commands in scripts have limited behavior, described in [Time travel
+limitations on computations](#time-travel-limitations-on-computations) below.
+* In some cases they behave in special ways, as described in [Don't care
+behaviors](#dont-care-behaviors) below. 
 
 ### Some details on syntax and semantics of the shell subset described above
 
@@ -102,7 +104,7 @@ such as _!_, _{_, _if_, and _function_, when used as the first word of a command
 such as _break_, _._, and _exit_.
 * A token consisting entirely of digits, immediately before _<_ or _>_ (for
 example, as in the command "_cat 2>/dev/null_").
-* Two adjacent left parentheses _((_ – see 
+* Two adjacent left parentheses _((_ - see 
 [Token Recognition](http://pubs.opengroup.org/onlinepubs/007904875/xrat/xcu_chap02.html#tag_02_02_03)
 for why. 
 
