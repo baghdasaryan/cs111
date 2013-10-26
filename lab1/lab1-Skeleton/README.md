@@ -177,13 +177,6 @@ commands to be executed.
 
 An example shell script, _example.sh_, is provided for your convenience.
 
-Features:
----------
-  * 
-  * 
-  * 
-  * 
-
 Limitations:
 ------------
   * 
