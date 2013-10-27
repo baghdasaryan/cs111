@@ -1,6 +1,6 @@
 #! /bin/sh
 
-# UCLA CS 111 Lab 1 - Test that syntax errors are caught.
+# Test that syntax errors are caught.
 
 tmp=$0-$$.tmp
 mkdir "$tmp" || exit
@@ -8,11 +8,10 @@ mkdir "$tmp" || exit
 cd "$tmp" || exit
 status=
 
-# Sanity check, to make sure it works with at least one good example.
-echo x >test0.sh || exit
-../timetrash -p test0.sh >test0.out 2>test0.err || exit
-echo '# 1
-  x' >test0.exp || exit
+# Sanity check, to make sure that the program works with at least one good example.
+echo echo Hello, world! >test0.sh || exit
+../timetrash test0.sh >test0.out 2>test0.err || exit
+echo 'Hello, world!' >test0.exp || exit
 diff -u test0.exp test0.out || exit
 test ! -s test0.err || {
   cat test0.err
@@ -47,7 +46,7 @@ for bad in \
   'a>>>b'
 do
   echo "$bad" >test$n.sh || exit
-  ../timetrash -p test$n.sh >test$n.out 2>test$n.err && {
+  ../timetrash test$n.sh >test$n.out 2>test$n.err && {
     echo >&2 "test$n: unexpectedly succeeded for: $bad"
     status=1
   }
@@ -62,3 +61,4 @@ exit $status
 ) || exit
 
 rm -fr "$tmp"
+

@@ -1,6 +1,6 @@
 #! /bin/sh
 
-# UCLA CS 111 Lab 1 - Test that valid syntax is processed correctly.
+# Test that the program works correctly in a sequential mode.
 
 tmp=$0-$$.tmp
 mkdir "$tmp" || exit
@@ -41,3 +41,4 @@ test ! -s test.err || {
 ) || exit
 
 rm -fr "$tmp"
+

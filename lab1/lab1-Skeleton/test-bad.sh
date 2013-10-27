@@ -1,12 +1,22 @@
 #! /bin/sh
 
-# UCLA CS 111 Lab 1 - Test that syntax errors are caught.
+# Test that syntax errors are caught.
 
 tmp=$0-$$.tmp
 mkdir "$tmp" || exit
 (
 cd "$tmp" || exit
 status=
+
+# Sanity check, to make sure that the program works with at least one good example.
+echo echo Hello, world! >test0.sh || exit
+../timetrash test0.sh >test0.out 2>test0.err || exit
+echo 'Hello, world!' >test0.exp || exit
+diff -u test0.exp test0.out || exit
+test ! -s test0.err || {
+  cat test0.err
+  exit 1
+}
 
 n=1
 for bad in \
@@ -51,3 +61,4 @@ exit $status
 ) || exit
 
 rm -fr "$tmp"
+
