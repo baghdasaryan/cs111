@@ -252,7 +252,6 @@ get_IO(bool only_o, char **comand_io,
 //check if any words in cmd1 appear in cmd2
 bool 
 depend(char **cmd1, char **cmd2){
-  bool is_dependent = false;
   int i,j = 0;
   if( cmd1 == NULL || cmd2 == NULL){
     return false;
@@ -304,6 +303,7 @@ create_node(cmd_node_t node, command_t c){
     node->dep_size = 0;
     node->dependent = NULL;
     node->cmd = c;
+    node->pid = -1;
 }
 
 //create a new dependency node
@@ -350,15 +350,12 @@ create_dependency_graph(dependency_t no_dep_first, dependency_t no_dep_last,
         getIO(true, iterator_o, iterator, &o_counter);
         //create dependency graph
         if(depend(curr_io, iterator_o)){
-            //create dependent nodes
-            cmd_note_t dep_node = NULL;
-            create_node(dep_node, iterator->cmd);
+            //create a new dependent node
+            cmd_node_t iter_node = NULL;
+            create_node(iter_node, iterator->cmd);
             //add the dependent node to current node
-            add_dependent_node(dep_node, node);
+            add_dependent_node(iter_node, node);
         }
-        //start to create dependency and no_dependency queue
-        dependency_t dep_node = NULL;
-        create_dependency_node(node, dep_node);
       }
       //if there are dependent nodes, add it to dependency queue
       //otherwise, add it to no dependency queue
@@ -394,7 +391,7 @@ time_travel(comand_stream_t c){
     create_dependency_graph(no_dep_first, no_dep_last, dep_first, dep_last,
                             c,dep_size, no_dep_size);
 
-
+    
 }
 
 
