@@ -10,7 +10,7 @@ status=
 
 # Sanity check, to make sure that the program works with at least one good example.
 echo echo Hello, world! >test0.sh || exit
-../timetrash test0.sh >test0.out 2>test0.err || exit
+../timetrash -t test0.sh >test0.out 2>test0.err || exit
 echo 'Hello, world!' >test0.exp || exit
 diff -u test0.exp test0.out || exit
 test ! -s test0.err || {
@@ -46,7 +46,7 @@ for bad in \
   'a>>>b'
 do
   echo "$bad" >test$n.sh || exit
-  ../timetrash test$n.sh >test$n.out 2>test$n.err && {
+  ../timetrash -t test$n.sh >test$n.out 2>test$n.err && {
     echo >&2 "test$n: unexpectedly succeeded for: $bad"
     status=1
   }

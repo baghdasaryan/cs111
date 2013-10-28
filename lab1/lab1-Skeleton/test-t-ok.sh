@@ -13,7 +13,6 @@ true
 
 #: : :
 
-false || echo hello, Dr. Eggert!
 false && echo hello, world!
 true && false || echo hello, TA!
 
@@ -30,7 +29,7 @@ EOF
 chmod +x test.sh
 
 sh test.sh >test.exp || exit
-../timetrash test.sh >test.out 2>test.err || exit
+../timetrash -t test.sh >test.out 2>test.err || exit
 
 diff -u test.exp test.out || exit
 test ! -s test.err || {
