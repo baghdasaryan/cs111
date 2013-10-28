@@ -172,19 +172,21 @@ files that can be regenerated with "_make_".
 lab1-_YOUR-USERNAME_.tar.gz and does some simple testing on it.
 
 After building the program with **_make_**, it can be run directly by
-invoking, for example, _./timetrash -p foo.sh_, where _foo.sh_ contains shell
-commands to be executed.
+invoking one of the following commands:
+`./timetrash -p foo.sh` to output commands from _foo.sh_ in a standard format
+`./timetrash foo.sh` to run given commands using a standard execution model
+(same as `sh foo.sh`)
+`./timetrash -t foo,sh` to execute given commands in parallel
+where _foo.sh_ contains shell commands to be executed.
 
 An example shell script, _example.sh_, is provided for your convenience.
 
 Limitations:
 ------------
-  * 
-  * 
-  * 
-  * 
+All the requirements have been satisfied.
 
 Summary:
 --------
 
-SUMMARY
+PROJECT SUMMARY
+
