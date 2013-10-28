@@ -8,15 +8,6 @@
 
 #include <ctype.h>
 
-struct command_stream
-{
-  command_stream_t next;
-  command_stream_t prev;
-  command_t cmd;
-};
-
-typedef struct token *token_t;
-
 
 // ********************************** //
 // ***                            *** //
@@ -364,7 +355,8 @@ gen_command_tree (token_t *token, size_t *line_num, size_t * num_subshell)
 
 command_stream_t 
 make_command_stream (int (*get_next_byte) (void *),
-		     void *get_next_byte_argument)
+		     void *get_next_byte_argument,
+                     int *num_cmds)
 {
   token_t tokens_head = NULL,
           current_token = NULL;
@@ -470,6 +462,7 @@ make_command_stream (int (*get_next_byte) (void *),
 
     // Allocate a new node
     command_stream_t temp = checked_malloc(sizeof(struct command_stream));
+    (*num_cmds)++;
 
     // Add data to the node
     temp->next = NULL;

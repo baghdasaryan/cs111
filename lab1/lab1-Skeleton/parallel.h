@@ -1,3 +1,4 @@
+/*
 #include <stdio.h>
 #include <sys/types.h>
 #include <command.h>
@@ -26,5 +27,5 @@ struct dependency{
 	dependency *prev;
 };
 typedef struct dependency *dependency_t;
-
+*/
 

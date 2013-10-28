@@ -35,3 +35,10 @@ struct command
   } u;
 };
 
+struct command_stream
+{
+  command_stream_t next;
+  command_stream_t prev;
+  command_t cmd;
+};
+

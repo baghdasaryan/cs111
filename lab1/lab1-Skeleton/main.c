@@ -48,25 +48,34 @@ main (int argc, char **argv)
   FILE *script_stream = fopen (script_name, "r");
   if (!script_stream)
     error (1, errno, "%s: cannot open", script_name);
+
+  int num_cmds = 0;
   command_stream_t command_stream =
-    make_command_stream (get_next_byte, script_stream);
+    make_command_stream (get_next_byte, script_stream, &num_cmds);
 
   command_t last_command = NULL;
   command_t command;
 
-  while ((command = read_command_stream (&command_stream)))
+  if (time_travel)
+  {
+    execute_travel (command_stream, num_cmds);
+  }
+  else
+  {
+    while ((command = read_command_stream (&command_stream)))
     {
       if (print_tree)
-	{
-	  printf ("# %d\n", command_number++);
-	  print_command (command);
-	}
+      {
+        printf ("# %d\n", command_number++);
+        print_command (command);
+      }
       else
-	{
-	  last_command = command;
-	  execute_command (command, time_travel);
-	}
+      {
+        last_command = command;
+        execute_command (command);
+      }
     }
+  }
 
   return print_tree || !last_command ? 0 : command_status (last_command);
 }
