@@ -11,7 +11,7 @@ execute momentarily (sometimes), which means that scheduler will decide what
 process should execute and when (while we need this process to run
 immediately). Since this system does not provide memory isolation, one process
 can access and modify another process's memory (e.g. change pid). In other
-words, if scheduler run an intermediarry process, that process might modify
+words, if scheduler run an intermediary process, that process might modify
 our pid.
 	Answer: sys_getpid() might not return the correct value.
 
