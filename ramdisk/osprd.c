@@ -22,6 +22,12 @@
 #include <linux/scatterlist.h>
 static void hexdump(unsigned char *buf, unsigned int len);
 static void crypto_demo(void);
+enum crypto_operation{
+	CRYPTO_ENCRYPT = 0,
+	CRYPTO_DECRYPT = 1
+};
+static ssize_t osprd_crypto_read(void);
+static ssize_t crypto(enum crypto_operation op);
 // ********************* //
 
 
@@ -211,7 +217,6 @@ static int osprd_close_last(struct inode *inode, struct file *filp)
 	return 0;
 }
 
-static ssize_t osprd_crypto_read(void);
 
 /*
  * osprd_lock
@@ -240,7 +245,8 @@ int osprd_ioctl(struct inode *inode, struct file *filp,
 	if (cmd == OSPRDIOCACQUIRE) {
 
 		printk("Data encryption started...\n");
-		osprd_crypto_read();
+		enum crypto_operation op = CRYPTO_ENCRYPT;
+		crypto(op);
 		printk("Data encryption finished...\n");
 
 		osp_spin_lock(&d->mutex);
@@ -481,13 +487,8 @@ out:
 const int crypto_mode = CRYPTO_TFM_MODE_CBC;
 
 
-enum crypto_operation{
-	CRYPTO_ENCRYPT = 0,
-	CRYPTO_DECRYPT = 1
-};
 
-static ssize_t
-crypto(enum crypto_operation op)
+static ssize_t crypto(enum crypto_operation op)
 {
 	// Config options
 	char *algo = "aes";
@@ -521,8 +522,6 @@ crypto(enum crypto_operation op)
 		goto out;
 	}
 
-	printk("i am here, bro...\n");
-
 	FILL_SG(&sg, data, num_bytes);
 
 	crypto_cipher_set_iv(tfm, iv, crypto_tfm_alg_ivsize (tfm));
@@ -541,7 +540,7 @@ crypto(enum crypto_operation op)
 	}
 
 	printk("DATA: "); hexdump(data, 16);
-	eprintk("PASS: Data successfully encrypted/decrypted\n");
+	eprintk("PASS: Data successfully %s\n",  op == CRYPTO_ENCRYPT ? "encrypted" : "decrypted");
 
 out_kfree:
 	kfree(data);
