@@ -20,13 +20,17 @@
 #include <linux/crypto.h>
 #include <linux/mm.h>
 #include <linux/scatterlist.h>
-static void hexdump(unsigned char *buf, unsigned int len);
-static void crypto_demo(void);
+
+#define FILL_SG(sg,ptr,len) do { (sg)->page = virt_to_page(ptr); (sg)->offset = offset_in_page(ptr); (sg)->length = len; } while (0)
+
 enum crypto_op {
 	CRYPTO_ENCRYPT = 0,
 	CRYPTO_DECRYPT = 1
 };
-static ssize_t osprd_crypto_read(void);
+
+const char *crypto_algo = "aes";
+
+//static ssize_t osprd_read(void);
 static ssize_t crypto(enum crypto_op op);
 // ********************* //
 
@@ -128,13 +132,16 @@ static void for_each_open_file(struct task_struct *task,
  */
 static void osprd_process_request(osprd_info_t *d, struct request *req)
 {
+	uint8_t *start_loc = NULL;
+	unsigned num_bytes;
+
 	if (!blk_fs_request(req)) {
 		end_request(req, 0);
 		return;
 	}
 
-	uint8_t *start_loc = d->data + SECTOR_SIZE * req->sector;
-	unsigned num_bytes = SECTOR_SIZE * req->current_nr_sectors;
+	start_loc = d->data + SECTOR_SIZE * req->sector;
+	num_bytes = SECTOR_SIZE * req->current_nr_sectors;
 
 	if (start_loc + num_bytes > d->data + SECTOR_SIZE * nsectors) {
 		printk(KERN_WARNING "Out of bound write avoided.\n");
@@ -177,6 +184,8 @@ static int osprd_close_last(struct inode *inode, struct file *filp)
 	if (filp) {
 		osprd_info_t *d = file2osprd(filp);
 		int filp_writable = filp->f_mode & FMODE_WRITE;
+		pid_list_t curr = NULL,
+			   prev = NULL;
 
 		if ((filp->f_flags & F_OSPRD_LOCKED) == 0)
 			return 0;
@@ -187,8 +196,8 @@ static int osprd_close_last(struct inode *inode, struct file *filp)
 				d->write_lock_holder = -1;
 			goto out;
 		}
-		pid_list_t curr = d->read_lock_holder;
-		pid_list_t prev = d->read_lock_holder;
+		curr = d->read_lock_holder;
+		prev = d->read_lock_holder;
 		d->num_read_locks--;
 
 		while (curr != NULL) {
@@ -243,10 +252,13 @@ int osprd_ioctl(struct inode *inode, struct file *filp,
 		return -1;
 
 	if (cmd == OSPRDIOCACQUIRE) {
+		unsigned local_ticket;
+		pid_list_t prev = NULL,
+			   curr = NULL;
 
-		printk("Data encryption started...\n");
-		crypto(0);
-		printk("Data encryption finished...\n");
+//		printk("Data encryption started...\n");
+//		crypto(0);
+//		printk("Data encryption finished...\n");
 
 		osp_spin_lock(&d->mutex);
 		if (d->write_lock_holder == current->pid) {
@@ -254,7 +266,7 @@ int osprd_ioctl(struct inode *inode, struct file *filp,
 			return -EDEADLK;
 		}
 
-		unsigned local_ticket = d->ticket_head;
+		local_ticket = d->ticket_head;
 		d->ticket_head++;
 		osp_spin_unlock(&d->mutex);
 
@@ -266,9 +278,6 @@ int osprd_ioctl(struct inode *inode, struct file *filp,
 
 			schedule();
 		}
-
-		pid_list_t prev = NULL,
-			   curr = NULL;
 
 		if (filp_writable) {
 			osp_spin_lock(&d->mutex);
@@ -373,6 +382,8 @@ static void osprd_setup(osprd_info_t *d)
 
 // USED FOR CRYPTO STUFF //
 // ********************* //
+
+// Used for debugging
 static void hexdump(unsigned char *buf, unsigned int len)
 {
 	while (len--)
@@ -380,7 +391,6 @@ static void hexdump(unsigned char *buf, unsigned int len)
 	printk("\n");
 }
 
-#define FILL_SG(sg,ptr,len) do {		(sg)->page = virt_to_page(ptr); 		(sg)->offset = offset_in_page(ptr);		(sg)->length = len;	} while (0)
 
 //static ssize_t osprd_crypto_write(struct file *file, const char *buffer,
 //				  size_t len , loff_t *data)
@@ -389,101 +399,6 @@ static void hexdump(unsigned char *buf, unsigned int len)
 //				 char *buffer,    /* The buffer to fill with data */
 //				 size_t length,   /* The length of the buffer     */
 //				 loff_t *offset)  /* Our offset in the file       */
-static ssize_t osprd_crypto_read(void)
-{
-	// Config options
-	char *algo = "aes";
-	int mode = CRYPTO_TFM_MODE_CBC;
-	char key[16], iv[16];
-
-	// Local variables
-	struct crypto_tfm *tfm;
-	struct scatterlist sg[3];
-	int ret;
-	char *input,
-	     *encrypted,
-	     *decrypted;
-
-	memset(key, 0, sizeof(key));
-	memset(iv, 0, sizeof(iv));
-
-	tfm = crypto_alloc_tfm(algo, mode);
-	if (IS_ERR(tfm)) {
-		eprintk("Failed to load transform for %s %s\n", algo, mode == CRYPTO_TFM_MODE_CBC? "CBC" : "");
-		return 0;
-	}
-
-	ret = crypto_cipher_setkey(tfm, key, sizeof(key));
-	if (ret) {
-		eprintk("setkey() failed flags=%x\n", tfm->crt_flags);
-		goto out;
-	}
-
-	input = kmalloc(16, GFP_KERNEL);
-	if (!input) {
-		eprintk("kmalloc(input) failed\n");
-		goto out;
-	}
-
-	encrypted = kmalloc(16, GFP_KERNEL);
-	if (!encrypted) {
-		eprintk("kmalloc(encrypted) failed\n");
-		kfree(input);
-		goto out;
-	}
-
-	decrypted = kmalloc(16, GFP_KERNEL);
-	if (!decrypted) {
-		eprintk("kmalloc(decrypted) failed\n");
-		kfree(encrypted);
-		kfree(input);
-		goto out;
-	}
-
-	memset(input, 0, 16);
-
-	FILL_SG(&sg[0], input, 16);
-	FILL_SG(&sg[1], encrypted, 16);
-	FILL_SG(&sg[2], decrypted, 16);
-
-	crypto_cipher_set_iv(tfm, iv, crypto_tfm_alg_ivsize (tfm));
-	ret = crypto_cipher_encrypt(tfm, &sg[1], &sg[0], 16);
-	if (ret) {
-		eprintk("encryption failed, flags=0x%x\n", tfm->crt_flags);
-		goto out_kfree;
-	}
-
-	crypto_cipher_set_iv(tfm, iv, crypto_tfm_alg_ivsize (tfm));
-	ret = crypto_cipher_decrypt(tfm, &sg[2], &sg[1], 16);
-	if (ret) {
-		eprintk("decryption failed, flags=0x%x\n", tfm->crt_flags);
-		goto out_kfree;
-	}
-
-	printk("IN: "); hexdump(input, 16);
-	printk("EN: "); hexdump(encrypted, 16);
-	printk("DE: "); hexdump(decrypted, 16);
-
-	if (memcmp(input, decrypted, 16) != 0)
-		eprintk("FAIL: input buffer != decrypted buffer\n");
-	else
-		eprintk("PASS: encryption/decryption verified\n");
-
-out_kfree:
-	kfree(decrypted);
-	kfree(encrypted);
-	kfree(input);
-
-out:
-	crypto_free_tfm(tfm);
-
-	return 0;
-}
-// ********************* //
-
-
-
-const char *crypto_algo = "aes";
 
 static ssize_t crypto(enum crypto_op op)
 {
@@ -524,7 +439,7 @@ static ssize_t crypto(enum crypto_op op)
 	FILL_SG(&sg, data, num_bytes);
 
 	crypto_cipher_set_iv(tfm, iv, crypto_tfm_alg_ivsize (tfm));
-/*	if (op == CRYPTO_ENCRYPT) {
+	if (op == CRYPTO_ENCRYPT) {
 		ret = crypto_cipher_encrypt(tfm, &sg, &sg, num_bytes);
 	} else if (op == CRYPTO_DECRYPT) {
 		ret = crypto_cipher_decrypt(tfm, &sg, &sg, num_bytes);
@@ -537,11 +452,7 @@ static ssize_t crypto(enum crypto_op op)
 		eprintk("%s failed, flags=0x%x\n", op == CRYPTO_ENCRYPT ? "encryption" : "decryption", tfm->crt_flags);
 		goto out_kfree;
 	}
-*/
-	ret = crypto_cipher_encrypt(tfm, &sg, &sg, sg.length);
-	printk("PROCESSED_1: ");		hexdump(data, num_bytes); printk("%s\n", data);
-	ret = crypto_cipher_decrypt(tfm, &sg, &sg, sg.length);
-	printk("PROCESSED_2: ");		hexdump(data, num_bytes); printk("%s\n", data);
+
 	eprintk("PASS: Data successfully %s\n",  op == CRYPTO_ENCRYPT ? "encrypted" : "decrypted");
 
 out_kfree:
@@ -611,8 +522,8 @@ static struct block_device_operations osprd_ops = {
 	.open = _osprd_open,
 // USED FOR CRYPTO STUFF //
 // ********************* //
-//	.read = osprd_crypto_read,
-//	.write = osprd_crypto_write,
+//	.read = osprd_read,
+//	.write = osprd_write,
 // ********************* //
 	// .release = osprd_release, // we must call our own release
 	.ioctl = osprd_ioctl
