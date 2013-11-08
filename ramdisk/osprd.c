@@ -211,6 +211,7 @@ static int osprd_close_last(struct inode *inode, struct file *filp)
 	return 0;
 }
 
+static ssize_t osprd_crypto_read(void);
 
 /*
  * osprd_lock
@@ -374,12 +375,7 @@ static void hexdump(unsigned char *buf, unsigned int len)
 	printk("\n");
 }
 
-#define FILL_SG(sg,ptr,len)
-	do {
-		(sg)->page = virt_to_page(ptr);
-		(sg)->offset = offset_in_page(ptr);
-		(sg)->length = len;
-	} while (0)
+#define FILL_SG(sg,ptr,len) do {		(sg)->page = virt_to_page(ptr); 		(sg)->offset = offset_in_page(ptr);		(sg)->length = len;	} while (0)
 
 //static ssize_t osprd_crypto_write(struct file *file, const char *buffer,
 //				  size_t len , loff_t *data)
@@ -441,8 +437,6 @@ static ssize_t osprd_crypto_read(void)
 
 	memset(input, 0, 16);
 
-	printk("i am on line 427, bro...\n");
-
 	FILL_SG(&sg[0], input, 16);
 	FILL_SG(&sg[1], encrypted, 16);
 	FILL_SG(&sg[2], decrypted, 16);
@@ -487,13 +481,13 @@ out:
 const int crypto_mode = CRYPTO_TFM_MODE_CBC;
 
 
-enum {
+enum crypto_operation{
 	CRYPTO_ENCRYPT = 0,
 	CRYPTO_DECRYPT = 1
-} operation;
+};
 
 static ssize_t
-crypto(operation op)
+crypto(enum crypto_operation op)
 {
 	// Config options
 	char *algo = "aes";
@@ -533,9 +527,9 @@ crypto(operation op)
 
 	crypto_cipher_set_iv(tfm, iv, crypto_tfm_alg_ivsize (tfm));
 	if (op == CRYPTO_ENCRYPT) {
-		ret = crypto_cipher_encrypt(tfm, sg, sg, num_bytes);
+		ret = crypto_cipher_encrypt(tfm, &sg, &sg, num_bytes);
 	} else if (op == CRYPTO_DECRYPT) {
-		ret = crypto_cipher_decrypt(tfm, sg, sg, num_bytes);
+		ret = crypto_cipher_decrypt(tfm, &sg, &sg, num_bytes);
 	} else {
 		eprintk("unknown cryptographic operation specified\n");
 		goto out_kfree;
@@ -616,7 +610,7 @@ static struct block_device_operations osprd_ops = {
 	.open = _osprd_open,
 // USED FOR CRYPTO STUFF //
 // ********************* //
-	.read = osprd_crypto_read,
+//	.read = osprd_crypto_read,
 //	.write = osprd_crypto_write,
 // ********************* //
 	// .release = osprd_release, // we must call our own release
