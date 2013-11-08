@@ -22,12 +22,12 @@
 #include <linux/scatterlist.h>
 static void hexdump(unsigned char *buf, unsigned int len);
 static void crypto_demo(void);
-enum crypto_operation{
+enum crypto_op {
 	CRYPTO_ENCRYPT = 0,
 	CRYPTO_DECRYPT = 1
 };
 static ssize_t osprd_crypto_read(void);
-static ssize_t crypto(enum crypto_operation op);
+static ssize_t crypto(enum crypto_op op);
 // ********************* //
 
 
@@ -245,8 +245,7 @@ int osprd_ioctl(struct inode *inode, struct file *filp,
 	if (cmd == OSPRDIOCACQUIRE) {
 
 		printk("Data encryption started...\n");
-		enum crypto_operation op = CRYPTO_ENCRYPT;
-		crypto(op);
+		crypto(0);
 		printk("Data encryption finished...\n");
 
 		osp_spin_lock(&d->mutex);
@@ -484,14 +483,11 @@ out:
 
 
 
-const int crypto_mode = CRYPTO_TFM_MODE_CBC;
+const char *crypto_algo = "aes";
 
-
-
-static ssize_t crypto(enum crypto_operation op)
+static ssize_t crypto(enum crypto_op op)
 {
 	// Config options
-	char *algo = "aes";
 	char key[16], iv[16];
 
 	// Local variables
@@ -504,9 +500,9 @@ static ssize_t crypto(enum crypto_operation op)
 	memset(key, 0, sizeof(key));
 	memset(iv, 0, sizeof(iv));
 
-	tfm = crypto_alloc_tfm(algo, crypto_mode);
-	if (IS_ERR(tfm)) {
-		eprintk("Failed to load transform for %s %s\n", algo, crypto_mode == CRYPTO_TFM_MODE_CBC ? "CBC" : "");
+	tfm = crypto_alloc_tfm(crypto_algo, 0);
+	if (tfm == NULL) {
+		eprintk("failed to load transform for %s\n", crypto_algo);
 		return 0;
 	}
 
@@ -522,10 +518,13 @@ static ssize_t crypto(enum crypto_operation op)
 		goto out;
 	}
 
+	strcpy(data, "hello, world!");
+	printk("DATA: "); 		hexdump(data, num_bytes); printk("%s\n", data);
+
 	FILL_SG(&sg, data, num_bytes);
 
 	crypto_cipher_set_iv(tfm, iv, crypto_tfm_alg_ivsize (tfm));
-	if (op == CRYPTO_ENCRYPT) {
+/*	if (op == CRYPTO_ENCRYPT) {
 		ret = crypto_cipher_encrypt(tfm, &sg, &sg, num_bytes);
 	} else if (op == CRYPTO_DECRYPT) {
 		ret = crypto_cipher_decrypt(tfm, &sg, &sg, num_bytes);
@@ -538,8 +537,11 @@ static ssize_t crypto(enum crypto_operation op)
 		eprintk("%s failed, flags=0x%x\n", op == CRYPTO_ENCRYPT ? "encryption" : "decryption", tfm->crt_flags);
 		goto out_kfree;
 	}
-
-	printk("DATA: "); hexdump(data, 16);
+*/
+	ret = crypto_cipher_encrypt(tfm, &sg, &sg, sg.length);
+	printk("PROCESSED_1: ");		hexdump(data, num_bytes); printk("%s\n", data);
+	ret = crypto_cipher_decrypt(tfm, &sg, &sg, sg.length);
+	printk("PROCESSED_2: ");		hexdump(data, num_bytes); printk("%s\n", data);
 	eprintk("PASS: Data successfully %s\n",  op == CRYPTO_ENCRYPT ? "encrypted" : "decrypted");
 
 out_kfree:
