@@ -28,10 +28,16 @@ enum crypto_op {
 	CRYPTO_DECRYPT = 1
 };
 
-const char *crypto_algo = "aes";
+const static char *crypto_algo = "aes";
 
-//static ssize_t osprd_read(void);
-static ssize_t crypto(enum crypto_op op);
+// Used for debugging
+static void hexdump(unsigned char *buf, unsigned int len)
+{
+	while (len--)
+		printk("%02x", *buf++);
+	printk("\n");
+}
+
 // ********************* //
 
 
@@ -72,8 +78,11 @@ typedef struct pid_list {
 
 /* The internal representation of our device. */
 typedef struct osprd_info {
+	char key[16];			// A 16 bit ramdisk
+					//   encryption/decryption key
+
 	uint8_t *data;                  // The data array. Its size is
-	                                // (nsectors * SECTOR_SIZE) bytes.
+	                                // (nsectors * SECTOR_SIZE) bytes
 
 	osp_spinlock_t mutex;           // Mutex for synchronizing access to
 					// this block device
@@ -87,7 +96,8 @@ typedef struct osprd_info {
 	wait_queue_head_t blockq;       // Wait queue for tasks blocked on
 					// the device lock
 
-	pid_t write_lock_holder; 
+	pid_t write_lock_holder; 	// A data structure that holds current
+					// write lock process'  pid
 
 	pid_list_t read_lock_holder;
 	unsigned num_read_locks;
@@ -112,6 +122,12 @@ static osprd_info_t osprds[NOSPRD];
  */
 static osprd_info_t *file2osprd(struct file *filp);
 
+
+
+
+
+
+static ssize_t crypto(osprd_info_t *d, char **data, int data_size, enum crypto_op op);
 /*
  * for_each_open_file(task, callback, user_data)
  *   Given a task, call the function 'callback' once for each of 'task's open
@@ -256,9 +272,21 @@ int osprd_ioctl(struct inode *inode, struct file *filp,
 		pid_list_t prev = NULL,
 			   curr = NULL;
 
-//		printk("Data encryption started...\n");
-//		crypto(0);
-//		printk("Data encryption finished...\n");
+		// USED FOR TESTING crypto(...)
+		// ****************************
+		printk("Data encryption started...\n");
+		char *data = kmalloc(512 * sizeof(char), GFP_KERNEL);
+		if (!data)
+			return -ENOMEM;
+		strcpy(data, "hello, world!");
+		// NOTE: Data and data_size should be 2^N bytes long
+		printk("DATA: %s\n", data);
+		crypto(d, &data, 512, 0);
+		printk("ENCRYPTED: %s\n", data);
+		crypto(d, &data, 512, 1);
+		printk("DECRYPTED: %s\n", data);
+		printk("Data encryption finished...\n");
+		// ****************************
 
 		osp_spin_lock(&d->mutex);
 		if (d->write_lock_holder == current->pid) {
@@ -311,10 +339,14 @@ int osprd_ioctl(struct inode *inode, struct file *filp,
 
 			if (prev == NULL) {
 				d->read_lock_holder = kmalloc(sizeof(pid_list_t), GFP_ATOMIC);
+				if (!d->read_lock_holder)
+					return -ENOMEM;
 				d->read_lock_holder->curr = current->pid;
 				d->read_lock_holder->next = NULL;
 			} else {
 				prev->next = kmalloc(sizeof(pid_list_t), GFP_ATOMIC);
+				if (!prev->next)
+					return -ENOMEM;
 				prev->next->curr = current->pid;
 				prev->next->next = NULL;
 			}
@@ -377,42 +409,20 @@ static void osprd_setup(osprd_info_t *d)
 	d->ticket_head = d->ticket_tail = 0;
 	d->write_lock_holder = -1;
 	d->num_read_locks = 0;
+	memset(d->key, 0, sizeof(d->key));
 }
 
-
-// USED FOR CRYPTO STUFF //
-// ********************* //
-
-// Used for debugging
-static void hexdump(unsigned char *buf, unsigned int len)
+static int crypto(osprd_info_t *d, char **data, int data_size, enum crypto_op op)
 {
-	while (len--)
-		printk("%02x", *buf++);
-	printk("\n");
-}
-
-
-//static ssize_t osprd_crypto_write(struct file *file, const char *buffer,
-//				  size_t len , loff_t *data)
-
-//static ssize_t osprd_crypto_read(struct file *filp,
-//				 char *buffer,    /* The buffer to fill with data */
-//				 size_t length,   /* The length of the buffer     */
-//				 loff_t *offset)  /* Our offset in the file       */
-
-static ssize_t crypto(enum crypto_op op)
-{
-	// Config options
-	char key[16], iv[16];
+	int ret_code = 1;
+	char iv[16];
 
 	// Local variables
 	struct crypto_tfm *tfm;
 	struct scatterlist sg;
 	int ret;
-	int num_bytes = 16;
-	char *data;
 
-	memset(key, 0, sizeof(key));
+	//memset(key, 0, sizeof(key));
 	memset(iv, 0, sizeof(iv));
 
 	tfm = crypto_alloc_tfm(crypto_algo, 0);
@@ -421,54 +431,37 @@ static ssize_t crypto(enum crypto_op op)
 		return 0;
 	}
 
-	ret = crypto_cipher_setkey(tfm, key, sizeof(key));
+	ret = crypto_cipher_setkey(tfm, d->key, sizeof(d->key));
 	if (ret) {
 		eprintk("setkey() failed flags=%x\n", tfm->crt_flags);
+		ret_code = 0;
 		goto out;
 	}
 
-	data = kmalloc(num_bytes, GFP_KERNEL);
-	if (!data) {
-		eprintk("kmalloc(data) failed\n");
-		goto out;
-	}
-
-	strcpy(data, "hello, world!");
-	printk("DATA: "); 		hexdump(data, num_bytes); printk("%s\n", data);
-
-	FILL_SG(&sg, data, num_bytes);
+	FILL_SG(&sg, *data, data_size);
 
 	crypto_cipher_set_iv(tfm, iv, crypto_tfm_alg_ivsize (tfm));
 	if (op == CRYPTO_ENCRYPT) {
-		ret = crypto_cipher_encrypt(tfm, &sg, &sg, num_bytes);
+		ret = crypto_cipher_encrypt(tfm, &sg, &sg, sg.length);
 	} else if (op == CRYPTO_DECRYPT) {
-		ret = crypto_cipher_decrypt(tfm, &sg, &sg, num_bytes);
+		ret = crypto_cipher_decrypt(tfm, &sg, &sg, sg.length);
 	} else {
 		eprintk("unknown cryptographic operation specified\n");
-		goto out_kfree;
+		ret_code = 0;
+		goto out;
 	}
 
 	if (ret) {
 		eprintk("%s failed, flags=0x%x\n", op == CRYPTO_ENCRYPT ? "encryption" : "decryption", tfm->crt_flags);
-		goto out_kfree;
+		ret_code = 0;
+		goto out;
 	}
-
-	eprintk("PASS: Data successfully %s\n",  op == CRYPTO_ENCRYPT ? "encrypted" : "decrypted");
-
-out_kfree:
-	kfree(data);
 
 out:
 	crypto_free_tfm(tfm);
 
-	return 0;
+	return ret_code;
 }
-// ********************* //
-
-
-
-
-
 
 
 /*****************************************************************************/
@@ -493,7 +486,40 @@ static void osprd_process_request_queue(request_queue_t *q)
 // the Linux block device interface doesn't let a block device find out
 // which file has been closed.  We need this information.
 
-static struct file_operations osprd_blk_fops;
+static ssize_t _osprd_read(struct file *file,
+			   char *buffer,      /* The buffer to fill with data */
+			   size_t count,      /* The length of the buffer     */
+			   loff_t *offset)    /* Our offset in the file       */
+{
+
+
+
+	// READ CODE GOES HERE
+
+
+	// returns NUM_READ_BYTES
+}
+
+static ssize_t _osprd_write(struct file *file,
+			    char *buffer,      /* The buffer to fill with data */
+			    size_t count,      /* The length of the buffer     */
+			    loff_t *offset)    /* Our offset in the file       */
+{
+
+
+
+	// WRITE CODE GOES HERE
+
+
+	// returns NUM_WRITTEN_BYTES
+}
+
+static struct file_operations osprd_blk_fops = {
+// UNCOMMENT THE FOLLOWING TWO LINES WHEN DONE
+//	.read = _osprd_read,
+//	.write = _osprd_write
+};
+
 static int (*blkdev_release)(struct inode *, struct file *);
 
 static int _osprd_release(struct inode *inode, struct file *filp)
@@ -520,11 +546,6 @@ static int _osprd_open(struct inode *inode, struct file *filp)
 static struct block_device_operations osprd_ops = {
 	.owner = THIS_MODULE,
 	.open = _osprd_open,
-// USED FOR CRYPTO STUFF //
-// ********************* //
-//	.read = osprd_read,
-//	.write = osprd_write,
-// ********************* //
 	// .release = osprd_release, // we must call our own release
 	.ioctl = osprd_ioctl
 };
