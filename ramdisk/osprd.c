@@ -20,6 +20,7 @@
 #include <linux/crypto.h>
 #include <linux/mm.h>
 #include <linux/scatterlist.h>
+#include <linux/cdev.h>
 
 #define FILL_SG(sg,ptr,len) do { (sg)->page = virt_to_page(ptr); (sg)->offset = offset_in_page(ptr); (sg)->length = len; } while (0)
 
@@ -37,6 +38,8 @@ static void hexdump(unsigned char *buf, unsigned int len)
 		printk("%02x", *buf++);
 	printk("\n");
 }
+
+char key[16];			// A 16 bit ramdisk
 
 // ********************* //
 
@@ -78,7 +81,7 @@ typedef struct pid_list {
 
 /* The internal representation of our device. */
 typedef struct osprd_info {
-	char key[16];			// A 16 bit ramdisk
+//	char key[16];			// A 16 bit ramdisk
 					//   encryption/decryption key
 
 	uint8_t *data;                  // The data array. Its size is
@@ -127,7 +130,7 @@ static osprd_info_t *file2osprd(struct file *filp);
 
 
 
-static ssize_t crypto(osprd_info_t *d, char **data, int data_size, enum crypto_op op);
+static ssize_t crypto(/*osprd_info_t *d, */char **data, int data_size, enum crypto_op op);
 /*
  * for_each_open_file(task, callback, user_data)
  *   Given a task, call the function 'callback' once for each of 'task's open
@@ -410,10 +413,11 @@ static void osprd_setup(osprd_info_t *d)
 	d->ticket_head = d->ticket_tail = 0;
 	d->write_lock_holder = -1;
 	d->num_read_locks = 0;
-	memset(d->key, 0, sizeof(d->key));
+	//memset(d->key, 0, sizeof(d->key));
+	memset(key, 0, sizeof(key));
 }
 
-static int crypto(osprd_info_t *d, char **data, int data_size, enum crypto_op op)
+static int crypto(/*osprd_info_t *d, */char **data, int data_size, enum crypto_op op)
 {
 	int ret_code = 1;
 	char iv[16];
@@ -432,7 +436,8 @@ static int crypto(osprd_info_t *d, char **data, int data_size, enum crypto_op op
 		return 0;
 	}
 
-	ret = crypto_cipher_setkey(tfm, d->key, sizeof(d->key));
+	//ret = crypto_cipher_setkey(tfm, d->key, sizeof(d->key));
+	ret = crypto_cipher_setkey(tfm, key, sizeof(key));
 	if (ret) {
 		eprintk("setkey() failed flags=%x\n", tfm->crt_flags);
 		ret_code = 0;
@@ -487,7 +492,6 @@ static void osprd_process_request_queue(request_queue_t *q)
 // the Linux block device interface doesn't let a block device find out
 // which file has been closed.  We need this information.
 
-#include <linux/cdev.h>
 
 struct scull_dev {
 	struct scull_qset *data; 	/* Pointer to first quantum set */
@@ -550,7 +554,6 @@ static ssize_t _osprd_read(struct file *filp,
 	if (*f_pos + count > dev->size)
 		count = dev->size - *f_pos;
 
-
 	/* find listitem, qset index, and offset in the quantum */
 	item = (long)*f_pos / itemsize;
 	rest = (long)*f_pos % itemsize;
@@ -574,6 +577,8 @@ static ssize_t _osprd_read(struct file *filp,
 		goto out;
 	}
 
+//	crypto(&buf, SECTOR_SIZE, 0);
+	
 	*f_pos += count;
 	retval = count;
 
@@ -627,6 +632,9 @@ static ssize_t _osprd_write(struct file *filp,
 		retval = -EFAULT;
 		goto out;
 	}
+
+//	crypto(&buf, SECTOR_SIZE, 1);
+
 	*f_pos += count;
 	retval = count;
 
