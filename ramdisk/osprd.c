@@ -491,13 +491,55 @@ static ssize_t _osprd_read(struct file *file,
 			   size_t count,      /* The length of the buffer     */
 			   loff_t *offset)    /* Our offset in the file       */
 {
+	loff_t offsets = *offset;
+	int _count = min_t(size_t, count, PAGE_SIZE); /* compare buffer length with PAGE_SIZE */
+	int size = file_inode(file)->i_size;
+	char *temp;
+	char *b;
+	osprd_info_t *d = file2osprd(file); 
+	
+	if(!count)
+		return 0;
+	if(size){
+		if(offsets > size)  
+			return 0;
+		if(offsets + _count > size)
+			_count = size - offs;
+	}
+	
+	temp = kmalloc(_count, GFP_KERNEL);
+	if(!temp)
+		return 0;
+	
+	osprd_spin_lock(&d->mutex);
+	
+	if(crypto(d, &buffer,_count,CRYPTO_DECRYPT)){ /* fail to decrypt */
+		osprd_spin_unlock(&d->mutex);
+		goto out_free;
+	}
+	
+	_count = fill_read(file, b, offs, count);
+	if(_count < 0){		/* fail to alloc memory */
+		osprd_spin_unlock(&d->mutex);
+		goto out_free;
+	}
+	
+	memcpy(temp, b, _count);
+	
+	osprd_spin_unlock(&d->mutex);
+	
+	if(copy_to_user(buffer, temp, _count)){  /* fail to copy to user */
+		count = 0;
+		goto out_free;
+	}
+	
+	*offset = offsets + _count;
+
+out_free:
+	kfree(temp);
+	return _count;
 
 
-
-	// READ CODE GOES HERE
-
-
-	// returns NUM_READ_BYTES
 }
 
 static ssize_t _osprd_write(struct file *file,
@@ -505,13 +547,44 @@ static ssize_t _osprd_write(struct file *file,
 			    size_t count,      /* The length of the buffer     */
 			    loff_t *offset)    /* Our offset in the file       */
 {
+	osprd_info_t *d = file2osprd(file);
+	int size = file_inode(file)->i_size;
+	loff_t offsets = *offset;
+	int _count = min_t(size_t, count, PAGE_SIZE);
+	char *temp;
+	char *b;
+	
+	if(!count)
+		return 0;
+	if(size){
+		if(offsets > size)
+			return 0;
+		if(offsets + _count > size)
+			_count = size - offsets;
+	}
+	
+	temp = copy_from_user(buffer, _count);
+	if(!temp)
+		return 0;
+	
+	if(crypto(d, &buffer, _count, CRYPTO_ENCRYPT)){ /* fail to decrypt */
+		osprd_spin_unlock(&d->mutex);
+		goto out_free;
+	}
+	
+	osprd_spin_lock(&d->mutex);	
+	memcpy(b, temp, _count);
+	_count = flush_write(file, b, offsets, _count);
+	osprd_spin_unlock(&d->mutex);
+	
+	if(_count > 0)
+		*offset = offsets + _count;
+
+out_free:
+	kfree(temp);
+	return _count;
 
 
-
-	// WRITE CODE GOES HERE
-
-
-	// returns NUM_WRITTEN_BYTES
 }
 
 static struct file_operations osprd_blk_fops = {
