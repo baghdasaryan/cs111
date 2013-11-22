@@ -16,9 +16,9 @@ Student ID: 603 875 284
 Email: baghdasaryan@ucla.edu
 
 # Partner 2 (if you're working in a team)
-Name: 
-Student ID: 
-Email: 
+Name: Sixiang Gu
+Student ID: 903 943 192
+Email: ntgsx92@gmail.com
 
 # Extra credit problems
 #Extra credit problem: none
