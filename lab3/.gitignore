@@ -2,4 +2,8 @@
 lab1-Skeleton/*.tar.gz
 lab1-Skeleton/tst.sh
 lab1-Skeleton/lab1-*
+lab3/.ospfs.ko.unsigned.cmd
+lab3/Module.symvers
+lab3/modules.order
+lab3/ospfs.ko.unsigned
 

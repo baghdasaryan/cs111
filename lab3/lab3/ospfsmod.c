@@ -1,7 +1,7 @@
 #include <linux/autoconf.h>
 #include <linux/version.h>
 #ifndef EXPORT_SYMTAB
-# define EXPORT_SYMTAB
+#define EXPORT_SYMTAB
 #endif
 #include <linux/module.h>
 #include <linux/moduleparam.h>
@@ -69,9 +69,9 @@ static ospfs_direntry_t *find_direntry(ospfs_inode_t *dir_oi, const char *name, 
  *
  *   The initial portion of the file declares all the operations structures we
  *   need to support ospfsmod: one for the superblock, several for different
- *   kinds of inodes and files.  There are separate inode_operations and
+ *   kinds of inodes and files. There are separate inode_operations and
  *   file_operations structures for OSPFS directories and for regular OSPFS
- *   files.  The structures are actually defined near the bottom of this file.
+ *   files. The structures are actually defined near the bottom of this file.
  */
 
 // Basic file system type structure
