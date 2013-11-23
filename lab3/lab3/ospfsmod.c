@@ -1368,14 +1368,41 @@ ospfs_link(struct dentry *src_dentry, struct inode *dir, struct dentry *dst_dent
 static int
 ospfs_create(struct inode *dir, struct dentry *dentry, int mode, struct nameidata *nd)
 {
-	//ospfs_inode_t *dir_oi = ospfs_inode(dir->i_ino);
+	ospfs_inode_t *dir_oi = ospfs_inode(dir->i_ino);
 	uint32_t entry_ino = 0;
-	/* EXERCISE: Your code here. */
-	return -EINVAL; // Replace this line
+	ospfs_inode_t *i_data;
+	ospfs_direntry_t *entry_oi;
+	if(dentry->d_name.len > OSPFS_MAXNAMELEN){
+		return -ENAMETOOLONG;
+	}
+	if(find_direntry(dir_oi, dentry->d_name.name, dentry->d_name.len) != NULL){
+		return -EEXIST;
+	}
+	entry_oi = create_blank_direntry(dir_oi);
+	if(IS_ERR(entry_oi)){
+		return PTR_ERR(entry_oi);
+	}
 
-	/* Execute this code after your function has successfully created the
-	   file.  Set entry_ino to the created file's inode number before
-	   getting here. */
+	//find an empty inode
+	for(entry_ino = 2; entry_ino < ospfs_super->os_ninodes; entry_ino++){
+		if(ospfs_inode(entry_ino)->oi_nlink == 0){
+			break;
+		}
+	}
+
+	//set the metadata
+	entry_oi->od_ino = entry_ino;
+	memcpy(entry_oi->od_name, dentry->d_name.name, dentry->d_name.len);
+	entry_oi->od_name[dentry->d_name.len] = 0;
+	i_data = ospfs_inode(entry_ino);
+	i_data->oi_size = 0;
+	i_data->oi_mode = mode;
+	i_data->nlink = 1;
+	i_data->ftype = OSPFS_FTYPE_REG;
+	i_data->oi_indirect = 0;
+	i_data->oi_indirect2 = 0;
+	memset(i_data->oi_direct, 0, OSPFS_NDIRECT);
+
 	{
 		struct inode *i = ospfs_mk_linux_inode(dir->i_sb, entry_ino);
 		if (!i)
@@ -1411,15 +1438,40 @@ ospfs_create(struct inode *dir, struct dentry *dentry, int mode, struct nameidat
 static int
 ospfs_symlink(struct inode *dir, struct dentry *dentry, const char *symname)
 {
-	//ospfs_inode_t *dir_oi = ospfs_inode(dir->i_ino);
+	ospfs_inode_t *dir_oi = ospfs_inode(dir->i_ino);
 	uint32_t entry_ino = 0;
+	ospfs_symlink_inode_t *i_data;
+	ospfs_direntry_t *entry_oi = 0;
 
-	/* EXERCISE: Your code here. */
-	return -EINVAL;
+	if(dentry->d_name.len > OSPFS_MAXNAMELEN){
+		return -ENAMETOOLONG;
+	}
+	if(strlen(symname) > OSPFS_MAXNAMELEN){
+		return -ENAMETOOLONG;
+	}
+	if(find_direntry(dir_oi, dentry->d_name.name, dentry->d_name.len) != 0){
+		return -EEXIST;
+	}
+	entry_oi = create_blank_direntry(dir_oi);
+	if(IS_ERR(entry_oi)){
+		return PTR_ERR(entry_oi);
+	}
 
-	/* Execute this code after your function has successfully created the
-	   file.  Set entry_ino to the created file's inode number before
-	   getting here. */
+	//get empty inode
+	uint32_t entry_ino;
+	for(entry_ino = 2; entry_ino < ospfs_super->os_ninodes; entry_ino++){
+		if(ospfs_inode(entry_ino)->oi_nlink == 0)
+			break;
+	}
+	//set metadata
+	entry_oi->od_ino = entry_ino;
+	memcpy(entry_oi->od_name, dentry->d_name.name, dentry->d_name.len);
+	entry_oi->od_name[dentry->d_name.len] = 0;
+	i_data->oi_size = strlen(symname);
+	i_data->oi_ftype = OSPFS_FTYPE_SYMLINK;
+	i_data->oi_nlink = 1;
+	strcpy(i_data->oi_symlink, symname);
+	
 	{
 		struct inode *i = ospfs_mk_linux_inode(dir->i_sb, entry_ino);
 		if (!i)
