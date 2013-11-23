@@ -1471,7 +1471,7 @@ ospfs_symlink(struct inode *dir, struct dentry *dentry, const char *symname)
 	i_data->oi_ftype = OSPFS_FTYPE_SYMLINK;
 	i_data->oi_nlink = 1;
 	strcpy(i_data->oi_symlink, symname);
-	
+
 	{
 		struct inode *i = ospfs_mk_linux_inode(dir->i_sb, entry_ino);
 		if (!i)
@@ -1500,8 +1500,32 @@ ospfs_follow_link(struct dentry *dentry, struct nameidata *nd)
 {
 	ospfs_symlink_inode_t *oi =
 		(ospfs_symlink_inode_t *) ospfs_inode(dentry->d_inode->i_ino);
-	// Exercise: Your code here.
-
+	int colon_index;
+	int link_length = strlen(oi->oi_symlink);
+	int iter;
+	char *temp = kmalloc(OSPFS_MAXSYMLINKLEN+1, GFP_ATOMIC);
+	strcpy(temp. oi->oi_symlink);
+	if(strncmp(temp,"root?", 5) == 0){
+		for(colon_index = 0; colon_index < link_length; colon_index++){
+			if(temp[colon_index] == ':'){
+				break;
+			}
+		}
+		if(colon_index < link_length){
+			if(current->uid == 0){
+				for(iter = 5; iter < colon_index; iter++){
+					temp[iter-5] = temp[iter];
+				}
+				temp[iter-5] = 0;
+			}
+			else{
+				for(iter = 5; iter < colon_index; iter++){
+					temp[iter - colon_index - 5] = temp[iter];
+				}
+				temp[iter - colon_index - 1] = 0;
+			}
+		}
+	}
 	nd_set_link(nd, oi->oi_symlink);
 	return (void *) 0;
 }
