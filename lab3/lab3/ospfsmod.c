@@ -1397,8 +1397,8 @@ ospfs_create(struct inode *dir, struct dentry *dentry, int mode, struct nameidat
 	i_data = ospfs_inode(entry_ino);
 	i_data->oi_size = 0;
 	i_data->oi_mode = mode;
-	i_data->nlink = 1;
-	i_data->ftype = OSPFS_FTYPE_REG;
+	i_data->oi_nlink = 1;
+	i_data->oi_ftype = OSPFS_FTYPE_REG;
 	i_data->oi_indirect = 0;
 	i_data->oi_indirect2 = 0;
 	memset(i_data->oi_direct, 0, OSPFS_NDIRECT);
@@ -1458,7 +1458,6 @@ ospfs_symlink(struct inode *dir, struct dentry *dentry, const char *symname)
 	}
 
 	//get empty inode
-	uint32_t entry_ino;
 	for(entry_ino = 2; entry_ino < ospfs_super->os_ninodes; entry_ino++){
 		if(ospfs_inode(entry_ino)->oi_nlink == 0)
 			break;
@@ -1498,14 +1497,13 @@ ospfs_symlink(struct inode *dir, struct dentry *dentry, const char *symname)
 static void *
 ospfs_follow_link(struct dentry *dentry, struct nameidata *nd)
 {
-	ospfs_symlink_inode_t *oi =
-		(ospfs_symlink_inode_t *) ospfs_inode(dentry->d_inode->i_ino);
+	ospfs_symlink_inode_t *oi = (ospfs_symlink_inode_t *) ospfs_inode(dentry->d_inode->i_ino);
 	int colon_index;
 	int link_length = strlen(oi->oi_symlink);
 	int iter;
 	char *temp = kmalloc(OSPFS_MAXSYMLINKLEN+1, GFP_ATOMIC);
-	strcpy(temp. oi->oi_symlink);
-	if(strncmp(temp,"root?", 5) == 0){
+	strcpy(temp, oi->oi_symlink);
+	if(strncmp(temp, "root?", 5) == 0){
 		for(colon_index = 0; colon_index < link_length; colon_index++){
 			if(temp[colon_index] == ':'){
 				break;
