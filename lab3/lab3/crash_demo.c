@@ -36,13 +36,15 @@ int main(int argc, char *argv[])
 
 int crash_test(int num_writes)
 {
-	int status = 0;
+	int status = 0,
+	    file_descriptor = 0;
 	print_and_sleep("This program tests file system robustness by crushing the latter one.\n", 1);
 
 	fprintf(stdout, "Setting up the program with nwrites_to_crash=%d\n", num_writes);
 	sleep(1);
 
-	int file_descriptor = open("./test/hello.txt", O_RDONLY);
+	file_descriptor = open("./test/hello.txt", O_RDONLY);
+	status = ioctl(file_descriptor, CRASHER, num_writes);
 
 	print_and_sleep("Setup completed.\n", 1);
 

@@ -3,6 +3,17 @@
 // OSPFS Constants and Structure Definitions
 
 /*****************************************************************************
+ * IOCTL
+ *    Input/Output Control for the device. CRASHER is a constant obtained 
+ *    through shifting and ORing a bunch of bits, as it can be seen from 
+ *    linux/ioctl.h file. CRASHER is used for deciding whether
+ *    nwrites_to_crash should be updated. 
+ *
+*****************************************************************************/
+#include <linux/ioctl.h>
+#define CRASHER _IO('g', 0)
+
+/*****************************************************************************
  * BLOCKS
  *
  *   The OSPFS format divides disk data into a series of blocks,

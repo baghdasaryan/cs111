@@ -1515,10 +1515,17 @@ ospfs_follow_link(struct dentry *dentry, struct nameidata *nd)
 }
 
 int
-ospfs_ioctl(struct inode *inode, struct file *filp, unsigned int cmd, unsigned long arg)
+ospfs_ioctl(struct inode *i, struct file *f, unsigned int cmd, unsigned long arg)
 {
 
-	return 0;
+	if (cmd == CRASHER)
+	{
+
+		nwrites_to_crash = arg;
+		return 0;
+	}
+
+	return -ENOTTY;
 }
 
 
