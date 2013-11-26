@@ -21,6 +21,9 @@ int main(int argc, char *argv[])
 	if (argc != 2) {
 		fprintf(stderr, "Usage: crash_demo NUMBER_OF_WRITES\n");
 		ret = 1;
+	} else if (atoi(argv[1]) < -1) {
+		fprintf(stderr, "Usage: crash_demo NUMBER_OF_WRITES\n");
+		ret = 1;
 	} else {
 		ret = crash_test(atoi(argv[1]));
 	}

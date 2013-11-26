@@ -42,6 +42,7 @@ static ospfs_super_t * const ospfs_super =
 
 static int change_size(ospfs_inode_t *oi, uint32_t want_size);
 static ospfs_direntry_t *find_direntry(ospfs_inode_t *dir_oi, const char *name, int namelen);
+static int nwrites_to_crash = -1;
 
 
 /*****************************************************************************
@@ -90,7 +91,6 @@ static struct dentry_operations ospfs_dentry_ops;
 static struct super_operations ospfs_superblock_ops;
 
 
-
 /*****************************************************************************
  * BITVECTOR OPERATIONS
  *
@@ -125,6 +125,32 @@ bitvector_test(const void *vector, int i)
 /*****************************************************************************
  * OSPFS HELPER FUNCTIONS
  */
+
+// check_writes_to_crash()
+//	Use this function to check the range of nwrites_to_crash. Function
+//	returns false either when nwrites_to_crash has its default value (was
+//	unchanged) or when it is more than zero, true otherwise.
+//	If necessary, function automatically decrements nwrites_to_crash.
+//
+//	In other words, this function checks if the crushing period has
+//	started.
+//
+//   Input:   none
+//   Returns: an integer 
+
+static int
+check_writes_to_crash(void)
+{
+	if (nwrites_to_crash == -1) {
+		return 0;
+	} else if (nwrites_to_crash > 0) {
+		nwrites_to_crash--;
+		return 0;
+	} else {
+		return 1;
+	}
+}
+
 
 // ospfs_size2nblocks(size)
 //	Returns the number of blocks required to hold 'size' bytes of data.
@@ -535,8 +561,15 @@ ospfs_unlink(struct inode *dirino, struct dentry *dentry)
 		return -ENOENT;
 	}
 
-	od->od_ino = 0;
+	if (check_writes_to_crash())
+		return 0;
+
 	oi->oi_nlink--;
+
+	if (check_writes_to_crash())
+		return 0;
+
+	od->od_ino = 0;
 	return 0;
 }
 
@@ -571,13 +604,15 @@ allocate_block(void)
 	uint32_t block;
 	for (block = 0; block < ospfs_super->os_nblocks; block++) {
 		if (bitvector_test(ospfs_block(OSPFS_FREEMAP_BLK), block) == 1) {
+			if (check_writes_to_crash())
+				return block;
+
 			bitvector_clear(ospfs_block(OSPFS_FREEMAP_BLK), block);
 			return block;
 		}
 	}
 
 	return 0;
-
 }
 
 
@@ -595,6 +630,9 @@ allocate_block(void)
 static void
 free_block(uint32_t blockno)
 {
+	if (check_writes_to_crash())
+		return;
+
 	if (blockno > ospfs_super->os_firstinob + ospfs_super->os_firstinob + ospfs_super->os_ninodes/OSPFS_BLKINODES)
 		bitvector_set(ospfs_block(OSPFS_FREEMAP_BLK + blockno/OSPFS_BLKBITSIZE), blockno % OSPFS_BLKBITSIZE);
 }
@@ -975,6 +1013,9 @@ change_size(ospfs_inode_t *oi, uint32_t new_size)
 	uint32_t old_size = oi->oi_size;
 	int r = 0;
 
+	if (check_writes_to_crash())
+		return 0;
+
 	while (ospfs_size2nblocks(oi->oi_size) < ospfs_size2nblocks(new_size)) {
 		r = add_block(oi);
 
@@ -1162,6 +1203,9 @@ ospfs_write(struct file *filp, const char __user *buffer, size_t count, loff_t *
 		if (count - amount < n)
 			n = count - amount;
 
+		if (check_writes_to_crash())
+			return 0;
+
 		retval = copy_from_user(data + *f_pos % OSPFS_BLKSIZE, buffer, n);
 		if (retval != 0) {
 			retval = -EFAULT;
@@ -1253,6 +1297,9 @@ create_blank_direntry(ospfs_inode_t *dir_oi)
 			break;
 	}
 
+	if (check_writes_to_crash())
+		return 0;
+
 	if (od == NULL) {
 		int retval = change_size(dir_oi, dir_oi->oi_size + OSPFS_DIRENTRY_SIZE);
 		if (retval < 0)
@@ -1260,6 +1307,9 @@ create_blank_direntry(ospfs_inode_t *dir_oi)
 
 		od = ospfs_inode_data(dir_oi, dir_oi->oi_size - OSPFS_DIRENTRY_SIZE);
 	}
+
+	if (check_writes_to_crash())
+		return 0;
 
 	od->od_ino = 0;
 	od->od_name[0] = 0;
