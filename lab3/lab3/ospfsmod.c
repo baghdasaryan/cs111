@@ -1361,9 +1361,15 @@ ospfs_link(struct dentry *src_dentry, struct inode *dir, struct dentry *dst_dent
 	if(IS_ERR(od))
 		return PTR_ERR(od);
 
+	if (check_writes_to_crash())
+		return 0;
+
 	// Copy directory name
 	strncpy(od->od_name, dst_dentry->d_name.name, dst_dentry->d_name.len);
 	od->od_name[dst_dentry->d_name.len] = 0;
+
+	if (check_writes_to_crash())
+		return 0;
 
 	// Update the number of links
 	od->od_ino = src_dentry->d_inode->i_ino;
@@ -1430,10 +1436,16 @@ ospfs_create(struct inode *dir, struct dentry *dentry, int mode, struct nameidat
 	if(entry_ino == ospfs_super->os_ninodes)
 		return -ENOSPC;
 
+	if (check_writes_to_crash())
+		return 0;
+
 	// Directory init
 	new_dir->od_ino = entry_ino;
 	memcpy(new_dir->od_name, dentry->d_name.name, dentry->d_name.len);
 	new_dir->od_name[dentry->d_name.len] = 0;
+
+	if (check_writes_to_crash())
+		return 0;
 
 	// Inode init
 	inode->oi_size = 0;
@@ -1499,6 +1511,9 @@ ospfs_symlink(struct inode *dir, struct dentry *dentry, const char *symname)
 			break;
 	}
 
+	if (check_writes_to_crash())
+		return 0;
+
 	if(entry_ino >= ospfs_super->os_ninodes)
 		return -ENOSPC;
 
@@ -1506,6 +1521,9 @@ ospfs_symlink(struct inode *dir, struct dentry *dentry, const char *symname)
 	new_dir->od_ino = entry_ino;
 	strncpy(new_dir->od_name, dentry->d_name.name, dentry->d_name.len);
 	new_dir->od_name[dentry->d_name.len] = 0;
+
+	if (check_writes_to_crash())
+		return 0;
 
 	// Inode init
 	inode->oi_size = strlen(symname);
