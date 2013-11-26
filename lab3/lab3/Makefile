@@ -34,6 +34,7 @@ BASEFILES	:= $(shell find base 2>/dev/null | grep -v '[ 	]')
 
 ospfs.ko all: fsimg.c truncate always
 	$(MAKE) -C $(KERNELPATH) M=$(shell pwd) modules
+	$(CC) -o crash_demo crash_demo.c
 
 install: ospfs.ko
 	$(MAKE) -C $(KERNELPATH) M=$(shell pwd) modules_install
@@ -41,7 +42,7 @@ install: ospfs.ko
 fsimg.c: fs.img fsimgtoc
 	./fsimgtoc fs.img fsimg.c
 
-fs.img: ospfsformat Makefile $(BASEFILES)
+fs.img: ospfsformat crash_demo Makefile $(BASEFILES)
 	./ospfsformat -l hello.txt:link -c $@ 4096 128 -r base
 
 ospfsformat: ospfsformat.c md5.c ospfs.h md5.h

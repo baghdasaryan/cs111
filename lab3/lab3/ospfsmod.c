@@ -567,7 +567,6 @@ ospfs_unlink(struct inode *dirino, struct dentry *dentry)
 
 static uint32_t
 allocate_block(void)
-// Done!!!
 {
 	uint32_t block;
 	for (block = 0; block < ospfs_super->os_nblocks; block++) {
@@ -596,7 +595,6 @@ allocate_block(void)
 static void
 free_block(uint32_t blockno)
 {
-// Done!!!
 	if (blockno > ospfs_super->os_firstinob + ospfs_super->os_firstinob + ospfs_super->os_ninodes/OSPFS_BLKINODES)
 		bitvector_set(ospfs_block(OSPFS_FREEMAP_BLK + blockno/OSPFS_BLKBITSIZE), blockno % OSPFS_BLKBITSIZE);
 }
@@ -716,7 +714,9 @@ direct_index(uint32_t b)
 //     indirect blocks.
 //  3) update the oi->oi_size field
 
-void zeroout_block(uint32_t blockno){
+void
+zeroout_block(uint32_t blockno)
+{
 	void *temp = ospfs_block(blockno);
 	memset(temp, 0, OSPFS_BLKSIZE);
 }
@@ -1514,6 +1514,13 @@ ospfs_follow_link(struct dentry *dentry, struct nameidata *nd)
 	return (void *) 0;
 }
 
+int
+ospfs_ioctl(struct inode *inode, struct file *filp, unsigned int cmd, unsigned long arg)
+{
+
+	return 0;
+}
+
 
 // Define the file system operations structures mentioned above.
 
@@ -1531,7 +1538,8 @@ static struct inode_operations ospfs_reg_inode_ops = {
 static struct file_operations ospfs_reg_file_ops = {
 	.llseek		= generic_file_llseek,
 	.read		= ospfs_read,
-	.write		= ospfs_write
+	.write		= ospfs_write,
+	.ioctl		= ospfs_ioctl
 };
 
 static struct inode_operations ospfs_dir_inode_ops = {
