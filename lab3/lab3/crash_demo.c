@@ -22,7 +22,7 @@ int main(int argc, char *argv[])
 		fprintf(stderr, "Usage: crash_demo NUMBER_OF_WRITES\n");
 		ret = 1;
 	} else if (atoi(argv[1]) < -1) {
-		fprintf(stderr, "Usage: crash_demo NUMBER_OF_WRITES\n");
+		fprintf(stderr, "NUMBER_OF_WRITES has to be >= -1\n");
 		ret = 1;
 	} else {
 		ret = crash_test(atoi(argv[1]));
