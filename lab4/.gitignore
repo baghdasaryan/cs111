@@ -1,0 +1,5 @@
+# Lab specific files
+lab4/*.tar.gz
+lab4/osppeer
+lab4/test/
+
