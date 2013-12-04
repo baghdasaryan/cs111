@@ -22,11 +22,20 @@
 #include <limits.h>
 #include "md5.h"
 #include "osp2p.h"
+/* use pthread for task 1*/
+#include <pthread.h>
+
 
 int evil_mode;			// nonzero iff this peer should behave badly
 
 static struct in_addr listen_addr;	// Define listening endpoint
 static int listen_port;
+
+/*****************************************************************************
+ * Mutex variable for pthread
+*/
+pthread_mutex_t download_mutex;
+pthread_mutex_t upload_mutex;
 
 
 /*****************************************************************************
@@ -73,6 +82,15 @@ typedef struct task {
 				// task_pop_peer() removes peers from it, one
 				// at a time, if a peer misbehaves.
 } task_t;
+
+/*****************************************************************************
+ * This struct holds the parameter needed
+ * for download file
+*/
+ typedef struct download_arg_holder {
+ 	task_t *t;
+ 	task_t *tracker_task;
+ } download_arg_holder_t;
 
 
 // task_new(type)
@@ -260,6 +278,7 @@ int open_socket(struct in_addr addr, int port)
  * peers.  They generally use and return 'task_t' objects, which are defined
  * at the top of this file.
  */
+
 
 // read_tracker_response(t)
 //	Reads an RPC response from the tracker using read_to_taskbuf().
@@ -525,8 +544,10 @@ static void task_download(task_t *t, task_t *tracker_task)
 		error("* Cannot connect to peer: %s\n", strerror(errno));
 		goto try_again;
 	}
-	osp2p_writef(t->peer_fd, "GET %s OSP2P\n", t->filename);
 
+	pthread_mutex_lock(&download_mutex);
+	osp2p_writef(t->peer_fd, "GET %s OSP2P\n", t->filename);
+	pthread_mutex_unlock(&download_mutex);
 	// Open disk file for the result.
 	// If the filename already exists, save the file in a name like
 	// "foo.txt~1~".  However, if there are 50 local files, don't download
@@ -679,6 +700,54 @@ static void task_upload(task_t *t)
 	task_free(t);
 }
 
+/*===============Parallel Code Begin================*/
+//wrapper function for start_download()
+void *pthread_start_download(void *download_holder){
+	download_arg_holder_t *arg = (download_arg_holder_t *)download_holder;
+	task_download(arg->t, arg->tracker_task);
+	return NULL;
+}
+
+//wrapper function for start_upload()
+void *pthread_start_upload(void *task){
+	task_t *t = (task_t *)task;
+	task_upload(t);
+	return NULL;
+}
+
+// This function is essentially a wrapper
+// for codes related to download files
+// We will apply parallelism to this function
+void parallel_download(int argc, char *argv[], task_t *t, task_t *tracker_task){
+	//TODO: Need to find a way to check the status of current thread
+	//so that we dont have to spin all the time
+	//We could try to set the MAXWAITTIME (60s maybe?) then just discard
+	//the download task.
+	pthread_mutex_init(&download_mutex, NULL);
+	int file_num = argc - 1;
+	int i;
+	int reval;
+	pthread_t threads[file_num];
+	for(i = 0; i < file_num; i++, argv++){
+		if((t = start_download(tracker_task, argv[1]))){
+			//setup the wrapper variable
+			download_arg_holder_t *download_holder = malloc(sizeof(download_arg_holder_t));
+			download_holder->t = t;
+			download_holder->tracker_task = tracker_task;
+			reval = pthread_create(&threads[i], NULL, pthread_start_download, (void *)download_holder);
+			if(reval){
+				die("Fail to create pthread, exit!\n");
+			}
+		}
+	}
+}
+
+void parallel_upload(task_t *t, task_t *listen_task){
+	t = NULL;
+	listen_task = NULL;
+}
+/*===============Parallel Code End===================*/
+
 
 // main(argc, argv)
 //	The main loop!
@@ -757,6 +826,11 @@ int main(int argc, char *argv[])
 	tracker_task = start_tracker(tracker_addr, tracker_port);
 	listen_task = start_listen();
 	register_files(tracker_task, myalias);
+
+	//setup pthread
+	pthread_t threads[argc];
+	pthread_mutex_init(&download_mutex, NULL);
+	pthread_mutex_init(&upload_mutex, NULL);
 
 	// First, download files named on command line.
 	for (; argc > 1; argc--, argv++)
