@@ -1,5 +1,4 @@
-# Project-Specific
-/Notes/
+# Project-Specific files
 
 # Vim files
 *.s[a-w][a-z]
@@ -25,5 +24,4 @@ Session.vim
 *.exe
 *.out
 *.app
-/lab1/lab1-Skeleton/timetrash
 

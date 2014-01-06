@@ -10,14 +10,9 @@
 
 # Partner 1
 Name: Georgi Baghdasaryan
-Student ID: 603 875 284
 Email: baghdasaryan@ucla.edu
 
 # Partner 2
-Name: Sixiang Gu
-Student ID: 903 943 192
-Email: ntgsx92@gmail.com
-
 
 # Add any other information you'd like us to have below this line.
 

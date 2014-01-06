@@ -3,10 +3,10 @@ Lab 1: Time Travel Shell
 
 Contributors:
 -------------
-Name | UID | Email
---- | --- | ---
-Georgi Baghdasaryan | 603 875 284 | baghdasaryan@ucla.edu  
-Sixiang Gu | 903 943 192 | ntgsx92@gmail.com
+Name | Email
+--- | ---
+Georgi Baghdasaryan | baghdasaryan@ucla.edu  
+Sixiang Gu | ntgsx92@gmail.com
 
 Lab Description
 ---------------

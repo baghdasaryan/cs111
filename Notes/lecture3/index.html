@@ -1,0 +1,392 @@
+<!DOCTYPE html> 
+<html>
+<head>
+<title>UCLA Fall 2013 CS 111 Lecture 3 Scribe Notes</title>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<script type="text/javascript" src="syntaxhighlighter_3.0.83/scripts/shCore.js"></script>
+	<script type="text/javascript" src="syntaxhighlighter_3.0.83/scripts/shBrushCpp.js"></script>
+	<script type="text/javascript" src="syntaxhighlighter_3.0.83/scripts/shBrushAsm.js"></script>
+	<link type="text/css" rel="stylesheet" href="syntaxhighlighter_3.0.83/styles/shCore.css"/>
+	<link type="text/css" rel="stylesheet" href="syntaxhighlighter_3.0.83/styles/shThemeDefault.css"/>
+	<script type="text/javascript">
+		SyntaxHighlighter.config.clipboardSwf = 'syntaxhighlighter_3.0.83/scripts/clipboard.swf';
+		SyntaxHighlighter.all();
+	</script>
+
+</head>
+
+<body>
+	<h1 style="font-family:Geneva,Arial,Helvetica,sans-serif;">CS 111 Lecture 3, Fall 2013</h1>
+	<h1 style="font-family:Geneva,Arial,Helvetica,sans-serif;font-size:x-large;">Modularity and Virtualization</h1>
+	<p style="font-family:Geneva,Arial,Helvetica,sans-serif;font-size:small;font-style:italic;">Scribed by: Georgi Baghdasaryan</p>
+  
+	<hr />
+
+	<h2>Contents</h2>
+		<ol type="1">
+			<li><a href="#issues">Issues with VSWC</a></li>
+			<li><a href="#performanceIssues">Performance Issues</a>
+			<ul>
+				<li><a href="#largerBuffer">Larger I/O Buffer</a></li>
+				<li><a href="#doubleBuffer">Double Buffering</a></li>
+				<li><a href="#dma">DMA</a></li>
+			</ul></li>
+			<li><a href="#modularity">Modularity</a>
+			<ul>
+				<li><a href="#modularityOverview">Overview</a>
+				<ul>
+					<li><a href="#modularityMetrics">Modularity Metrics</a></li>
+					<li><a href="#supportingModularity">Supporting Modularity</a></li>
+				</ul></li>
+				<li><a href="#softModularity">Soft Modularity</a>
+				<ul>
+					<li><a href="#functionalModularity">Functional Modularity</a></li>
+				</ul></li>
+				<li><a href="#hardModularity">Hard Modularity</a>
+				<ul>
+					<li><a href="#clientServerModularity">Client-Server Modularity</a></li>
+					<li><a href="#virtualizationModularity">Virtualization</a></li>
+				</ul></li>
+			</ul></li>
+		</ol>
+  
+	<hr />
+	
+	<h2 id="issues">Issues with VSWC</h2>
+		<p>In the last section, we introduced a Very Secured Word Counter (VSWC) -
+			a standalone application that securely counts number of words in a
+			given file. Here we will cover different issues related to VSWC&#39;s
+			implementation as well as introduce you to the principle of modularity.</p>
+		<p>Some problems with our standalone application are:</p>
+		<ol>
+			<li>Poor performance</li>
+			<li>It wastes disk space since it keeps multiple copies of the
+				same <i>read_sector</i> function for BIOS, MBR, and VSWC.</li>
+			<li>It is hard to modify, maintain and debug.</li>
+			<li>It is hard to reuse parts of our program anywhere else (i.e. in
+				other programs). Cut and Paste does not scale when developing
+				real-world systems.</li>
+			<li>Cannot run VSWC with other programs concurrently. For example, if
+				Microsoft Word and VSWC run at the same time, they may compete for
+				various resources while calling <i>read_sector</i>.</li>
+			<li>Current implementation does not have any error-checking or recovery
+				mechanisms.</li>
+		</ol>
+
+	<hr />
+	
+	<h2 id="performanceIssues">Performance Issues</h2>
+		<p>First, we will focus on VSWC&#39;s performance issues. We will cover
+			three major ways of improving program performance:</p>
+		<ol>
+			<li>Using larger I/O Buffer</li>
+			<li><a href="http://en.wikipedia.org/wiki/Multiple_buffering">Double Buffering</a></li>
+			<li>Using <a href="http://en.wikipedia.org/wiki/Direct_memory_access">DMA</a> instead of <a href="http://en.wikipedia.org/wiki/Programmed_input/output">PIO</a></li>
+		</ol>
+		<p>Other ways, like getting a faster drive (e.g. 
+			<a href="http://en.wikipedia.org/wiki/RAID">SSD</a>) or going
+			<a href="http://en.wikipedia.org/wiki/RAID">RAID</a>, are possible but
+			will not be discussed here.</p>
+
+	<h3 id="largerBuffer">Larger I/O Buffer</h3>
+		<p>Let&#39;s consider the case when data processing takes less time
+			than reading data into a buffer.</p>
+			
+		<img src="pictures\larger_io_buffer\larger_io_buffer_1.png" alt="small_buffer" />
+			
+		<p>As it can be seen from the above picture, a lot of time is spent on
+			reading data into a buffer and context-switching. Increasing
+			the the buffer size would result in minimizing the time program
+			spends on switching between reading and processing
+			(context-switching), as shown below.</p>
+			
+		<img src="pictures\larger_io_buffer\larger_io_buffer_2.png" alt="large_buffer" />
+			
+		<p>Method pros and cons:</p>
+		<blockquote><div>
+			<b>+</b> Batching lessens overhead (assuming that we read data
+				from big files).<br />
+			<b>--</b> Memory issue -- program can run out of memory (RAM)
+				while reading data into a buffer, in case the buffer size
+				is bigger than the RAM. So, we actually might have a
+				problem with choosing a correct size for the buffer.<br />
+			<b>--</b> Wasted work for small files -- program will be
+				getting too much of unnecessary data in case if
+				provided file is small.
+		</div></blockquote>
+		
+	<h3 id="doubleBuffer">Double Buffering</h3>
+		<p>Now, let&#39;s look at the case when data processing takes as much
+			time as copying data from disk to RAM does.</p>
+		
+		<img src="pictures\double_buffering\double_buffering_1.png" alt="single_buffer" />
+			
+		<p>In this case, we have a single buffer. As it can be seen from
+			above figure, CPU and I/O devices each have large idling time,
+			because one has to wait for the other one to finish, before
+			it can start its own task. This scheme has an occupancy issue,
+			since only one device can do useful work at a time.</p>
+			
+		<p>Double buffering is one of the ways to solve this problem. It
+			allows CPU to work on data from the first buffer while I/O
+			writes to the second one, and then they switch. This is
+			illustrated in the figure below.</p>
+			
+		<img src="pictures\double_buffering\double_buffering_2.png" alt="dual_buffers" />
+			
+		<p>As it can be seen from the above figure, reading and processing
+			happen almost in parallel when we take advantage of double
+			buffering.</p>
+			
+		<p>Method pros and cons:</p>
+		<blockquote><div>
+			<b>+</b> No idle time => Double buffering lowers the execution
+				time by a factor of 2 if CPUtime ~ I/O time, but it is
+				still faster than a single buffer even if CPUtime != I/O
+				time.<br />
+			<b>--</b> Twice as much RAM is needed
+		</div></blockquote>
+			
+		<p><b><i>Question:</i></b> We just showed that double buffering
+			doubles the speed of the program, will triple buffering
+			decrease execution time by a factor of 3?<br />
+		<b>Answer:</b> No, one buffer would be extra for several reasons:</p>
+		<ol>
+			<li>In this case we assume that CPUtime = I/O time</li>
+			<li>If CPUtime &lt; I/O time: triple buffering does not make any
+				sense; we would need multiple disks to support multiple
+				buffers</li>
+			<li>If CPUtime > I/O time: triple buffering does not make any
+				sense</li>
+		</ol>
+		<p>It might be useful to draw diagrams to understand the above	answer.</p>
+		
+	<h3 id="dma">DMA</h3>
+		<p>In VSWC, we used <i>insl</i> extensively as our method for copying
+			data from hard disk to RAM. However, <i>insl</i> instruction is
+			slow. As it was designed, it transports data from the disk to CPU,
+			and then to RAM. Since all three components (disk, CPU and RAM)
+			shares the same bus, this method is effectively occupying it for
+			twice as long as is needed, slowing down other parts of the system
+			as many operations require the shared bus to be free. Figure below
+			shows how <i>insl</i> works.</p>
+			
+		<img src="pictures\dma\dma_1.png" alt="pio" />
+		
+		<p>To correct this problem, we can use a method of data transport
+			known as Direct Memory Access (DMA) to access data on disk.
+			In DMA, disk controller issues the transfer of data to the
+			RAM directly, skipping the middle-man – CPU. In this way, bus
+			used only one time (instead of two as in the case of PIO), 
+			which improves the overall performance of our program.
+			Following graph shows an example of Direct Memory Access.</p>
+			
+		<img src="pictures\dma\dma_2.png" alt="dma" />
+			
+	<hr />
+
+	<h2 id="modularity">Modularity</h2>
+		<p>In the above section we attempted to solve the problem of VSWC's poor 
+			performance. Here, we will redirect our attention to problems of 
+			modifying, maintaining, debugging and reusing previously written code.
+			Using modularity and abstraction is one of the ways to attempt solving
+			these issues.</p>
+	
+	<h3 id="modularityOverview">Overview</h3>	
+		<p><i>Modularity</i> is a degree to which system's components may be
+			separated and recombined. In other words, modularity represents how
+			well a big system can be broken into manageable pieces, which can be
+			changed without a need to alter other modules. We use it to break big
+			programs into parts, mainly improve the maintenance.</p>
+		
+		<p><b><i>Example:</i></b> Analyzing the effect of Modularity on finding
+			and fixing bugs.</p>
+		Notation:
+		<ul style="list-style: none;">
+			<li>N: number of code lines.</li>
+			<li>B: number of bugs in the code.</li>
+			<li>T: amount of time necessary to find and fix a bug.</li>
+			<li>T<sub>total</sub>: amount of time necessary to find and
+				fix all the bugs.</li>
+			<li>M: number of modules we in the program.</li>
+		</ul>
+		
+		Now, let's consider two scenarios:
+		<ol>
+			<li><i>Program written without paying attention to modularity</i><br />
+				Number of bugs B &prop; N<br />
+				Time to fix a bug is T &prop; N<br />
+				Thus, time to find and fix all the bugs would be
+					T<sub>total</sub> = O(N*N) = O(N<sup>2</sup>)</li>
+			<li><i>Modular program</i><br />
+				Let's assume that bugs are distributed evenly among M
+					modules, and each module has N/M lines of code.<br />
+				Then, T is proportional to N/M, and T<sub>total</sub> =
+					O((N/M) * N) = O(N<sup>2</sup>/M)</li>
+		</ol>
+		<p>Comparing cases (1) and (2), we see that with M modules, we reduce 
+			the amount of time to find and fix all bugs to 1/M of the original
+			time (without modules).</p>
+					
+		<b><i>Question:</i></b> Does it mean that the more modules we use the
+			easier it will be to maintain the program?<br />
+		<b>Answer:</b> Having too many modules can result in bugs
+			interlaying between functions and files, which means that we
+			would need to consult several modules to find a single bug,
+			and that will be against the idea of using modularity.
+
+	<h4 id="modularityMetrics">Modularity Metrics</h4>
+		<p>One of the ways to decide what kind of modularization to choose is
+			to consult modularity metrics:</p>
+		<ol>
+			<li><i>Simplicity</i> – modularization should be easy to learn,
+				remember, use, document, etc.</li>
+			<li><i>Robustness</i> – modules should work well independent of
+				conditions, tolerate faults, reduce noise.</li>
+			<li><i>Flexibility</i> – each module should have as few
+				assumptions	of other modules as possible.</li>
+			<li><i>Performance</i> – good modularization should not be an
+				inherent resource burden.</li>
+		</ol>
+		
+	<h4 id="supportingModularity">Supporting Modularity</h4>
+		<p>Supporting modularity is a very good as well as important coding
+			practice. In order to support modularity, it is discouraged to use
+			lots of global variables and to create one function that does all
+			the work. Global variables may introduce undefined behaviors when
+			changed from different functions, while one huge function (just 
+			like <a href="http://en.wikipedia.org/wiki/Turing_machine">Turing
+			Machine</a>)is incapable of supporting modularity.</p>
+			
+		<p>Here are three basic methods one can follow for creating modular
+			code:</p>
+		<ul>
+			<li>Using functions/procedures/routines/methods</li>
+			<li>Client-Server modularity</li>
+			<li>Virtualization</li>
+		</ul>
+		
+	<h3 id="softModularity">Soft Modularity</h3>	
+		<p>Soft modularity can be though as a division of a big program into
+			small independent blocks without using any "special" (e.g. hardware)
+			techniques. Function modularity can serve as a nice example of soft
+			modularity.</p>
+	
+	<h4 id="functionalModularity">Functional Modularity</h4>
+		<p>Separating code into functions separates processes from each other.
+			This allows each process to be considered individually, which makes
+			the debugging much easier. In addition, functional modularity allows 
+			functions to be reused in different programs, which makes the code
+			even more modular.</p>
+		
+		<p>Recursion is a special case of function call where the caller is
+			also the callee. We shall examine the code for a factorial function
+			as an example.</p>
+		
+		<pre class="brush: c;">
+		int fact(int n) {
+			if (n == 0) 
+				return 1;
+			return n * fact(n-1);	
+		}
+		</pre>
+		
+		<p>And here is how the ASSEMBLY code for this function would look like:</p>
+		<pre class="brush: asm;">
+		fact:
+			pushl %ebp				; *--sp = bp
+			movl $1, %eax			; ax = 1
+			movl %esp, %ebp			; bp = sp
+			subl $8, %esp			; sp = sp -8
+			movl %ebx, -4(%ebp)		; bp[-1] = bx
+			movl 8(%ebp), %ebx		; bx = bp[2]
+			testl %ebx, %ebx		; if (n != 0)
+			jne .L5					;     goto .L5
+		.L1	movl -4(%ebp), %ebx		; bx = bp[-1]
+			movl %ebp, %esp			; sp = bp
+			popl %ebp				; bp = *sp++
+			ret						; ip = *sp++
+		.L5	leal -1(%ebx), %eax		; ax = bx -1
+			movl %eax, (%esp)		; *sp = ax
+			call fact				; *sp++ = ip    // ip = fact
+			imull %ebx, %eax		; ax = ax * bx
+			jmp .L1
+		</pre>
+		
+		<p>Soft modularity depends on modules working together. There is a
+			certain amount of trust between the caller and the callee. In
+			consequence, any errors suffered by one module may propagate into
+			another, as modularity is not enforced and the contract may be
+			broken regardless of programmer's intentions.</p>
+		
+		<p>A caller-callee contract (i.e. an agreement between the 
+			caller and callee of the function) is necessary for creating
+			functional modularity, so that this process would work without
+			security breaches and/or bugs.</p>
+			
+		<p>The unwritten caller-callee contract consists of the following
+			conditions:</p>
+		<ul>
+			<li>sp[0] = return address</li>
+			<li>sp[1] = n (return value)</li>
+			<li>sp[i] = i-th variable</li>
+			<li>at return:
+				<ul>
+					<li>%eax holds return value (can hold any value during
+						execution)</li>
+					<li>%ebx,%ebp are unchanged (can hold any value during
+						execution)</li>
+					<li>%esp = old %esp + 4 (it is callee's responsibility to
+						pop the return address)</li>
+				</ul></li>
+			<li>all stack spaces in callee must be unchanged</li>
+			<li>there is enough stack space (16*n + 8 bytes)</li>
+			<li>callee must set ip to sp[0], not return to a random location,
+				and not loop forever</li>
+		</ul>
+			
+		<p>Anything can go wrong in the case if caller-callee contract is
+			violated. Thus, in order to have enforced modularity, it is necessary
+			to use external mechanisms that limit interaction between modules.</p>
+			
+	<h3 id="hardModularity">Hard Modularity</h3>
+	
+	<h4 id="clientServerModularity">Client-Server Modularity</h4>
+		<p>Hard modularity restricts interaction between modules and validates
+			expected results from a module. One way to do is this by organizing
+			modules as clients and services, which communicate through requests
+			and responses respectively.</p>
+			
+		<p>Hard modularity is enforced because since the client and the
+			service do not share memory, and modules can check the validity of
+			the messages sent between them. In consequence, hard modularity via
+			client/service is much slower than soft modularity.</p>
+			
+		<p>In the factorial example, hard modularity can be implemented with a
+			web service available at a URL such as 
+			<a href="http://factorial.cs.ucla.edu/fact=23">http://factorial.cs.ucla.edu/fact=23</a>
+			and the factorial of 23 would be printed in the browser. In this
+			example factorial.cs.ucla.edu is the service and the browser is the
+			client. If for some reason the web service goes into an infinite
+			loop is becomes unavailable, the browser as an automatic response
+			to stop waiting for a response or to display an availability error.</p>
+			
+		<p>Conceptually the service and the client are on separate computers
+			but using the OS, the two modules can exist on the same computer.</p>
+		
+	<h4 id="virtualizationModularity">Virtualization</h4>
+		<p>We can simulate the client/server organization on one computer by
+			using virtualization. This means that a separate virtual computer
+			is used to execute a module.</p>
+			
+		<p>For example in the case of the factorial function, using a virtual
+			x86 machine we can have an instruction called factl which produces
+			the same results as that stores its return value in %eax. The factl
+			instruction executes in a virtual memory and eliminates the
+			possibility of memory overwriting from other modules.</p>
+			
+		<p>Virtualization causes extra overhead and we need to speed up the
+			process for it to be usable.</p>
+					
+</body>
+</html>
