@@ -1,0 +1,40 @@
+Name: Georgi Baghdasaryan
+UCLA ID: 603 875 284
+
+-------------------------------------------------------------------------------
+
+Response to Exercise 1:
+
+The name of the scheduling algorithm is: Round Robin
+
+
+(Exercise 2 is a coding exercise)
+
+
+Response to Exercise 3:
+
+Average turnaround time for scheduling_algorithm 0: 1278.5 ms
+Average turnaround time for scheduling_algorithm 1: 800 ms
+
+Average wait time for scheduling_algorithm 0: 1.5 ms
+Average wait time for scheduling_algorithm 1: 480 ms
+
+
+Exercise 4:
+
+Did you complete Exercise 4A, Exercise 4B, or both for extra credit? Both, for extra credit.
+	Exercise 4A: Completed!
+	Exercise 4B: Completed!
+
+Exercise 5:
+During execution of process 4.
+
+(Exercise 6 is a coding exercise)
+
+Extra credit exercises: set extra_credit_on boolean inside schedos-1.c, use PART_ON (in schedos.h) to switch between parts
+
+Exercise 7:
+For this question, I implemented the lottery scheduling algorithm. I used a random number generator to get a randomized number that was used to schedule waiting processes.
+
+Exercise 8: Completed!
+
