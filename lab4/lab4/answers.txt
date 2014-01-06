@@ -14,7 +14,6 @@
 
 # Partner 1
 Name: Georgi Baghdasaryan
-Student ID: 603 875 284
 Email: baghdasaryan@ucla.edu
 
 # Partner 2 (if you're working in a team)
