@@ -18,9 +18,9 @@ Student ID: 603 875 284
 Email: baghdasaryan@ucla.edu
 
 # Partner 2 (if you're working in a team)
-#Name: 
-#Student ID: 
-#Email: 
+Name: Sixiang Gu
+Student ID: 903 943 192
+Email: ntgsx92@gmail.com
 
 EXERCISE 1: What method you used to make your peer download and upload
    files in parallel?  (~1-3 sentences)

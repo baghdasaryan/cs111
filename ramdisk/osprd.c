@@ -475,6 +475,7 @@ out:
 /*                                                                           */
 /*****************************************************************************/
 
+#include <linux/fs.h>
 // Process a list of requests for a osprd_info_t.
 // Calls osprd_process_request for each element of the queue.
 
@@ -539,6 +540,7 @@ static ssize_t _osprd_read(struct file *filp,
 			   size_t count,	/* The length of the buffer     */
 			   loff_t *f_pos)	/* Our offset in the file       */
 {
+	printk(KERN_INFO "Hey, I am reading data...");
 	struct scull_dev *dev = filp->private_data;
 	struct scull_qset *dptr;	/* the first listitem */
 	int quantum = dev->quantum,
@@ -592,6 +594,7 @@ static ssize_t _osprd_write(struct file *filp,
 			    size_t count,	/* The length of the buffer     */
 			    loff_t *f_pos)	/* Our offset in the file       */
 {
+	printk(KERN_INFO "Hey, I am writing data...");
 	struct scull_dev *dev = filp->private_data;
 	struct scull_qset *dptr;
 	int quantum = dev->quantum,
@@ -663,6 +666,7 @@ static int _osprd_release(struct inode *inode, struct file *filp)
 
 static int _osprd_open(struct inode *inode, struct file *filp)
 {
+printk(KERN_INFO "I have just opened your device :)\n");
 	if (!osprd_blk_fops.open) {
 		memcpy(&osprd_blk_fops, filp->f_op, sizeof(osprd_blk_fops));
 		blkdev_release = osprd_blk_fops.release;
